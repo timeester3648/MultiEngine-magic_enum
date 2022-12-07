@@ -51,3 +51,9 @@ _deps
 
 ### Bazel build artifacts ###
 /bazel-*
+
+# exclude project files
+**.sln
+**.vcxproj
+**.vcxproj.user
+**.vcxproj.filters
