@@ -1,6 +1,7 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2022 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -29,18 +30,19 @@
 #  pragma warning(disable : 4244) // warning C4244: 'argument': conversion from 'const T' to 'unsigned int', possible loss of data.
 #endif
 
-#ifdef _WIN32
-#define _ITERATOR_DEBUG_LEVEL 0
-#endif
-
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
 #include <magic_enum_containers.hpp>
+#include <magic_enum_iostream.hpp>
 
 #include <functional>
 
 enum class Color { RED = 1, GREEN = 2, BLUE = 4 };
+template <>
+struct magic_enum::customize::enum_range<Color> {
+  static constexpr bool is_flags = true;
+};
 
 enum class Empty {};
 
@@ -287,14 +289,6 @@ TEST_CASE("containers_set") {
   REQUIRE(color_set_not_const.empty());
   REQUIRE(color_set_not_const.size() == 0);
   REQUIRE_FALSE(magic_enum::enum_count<Color>() == color_set_not_const.size());
-}
-
-TEST_CASE("containers_flat_set") {
-
-  // constexpr magic_enum::containers::flat_set color_flat_set_filled = {Color::RED, Color::GREEN, Color::BLUE};
-  // REQUIRE_FALSE(color_flat_set_filled.empty());
-  // REQUIRE(color_flat_set_filled.size() == 3);
-  // REQUIRE(magic_enum::enum_count<Color>() == color_flat_set_filled.size());
 }
 
 TEST_CASE("map_like_container") {

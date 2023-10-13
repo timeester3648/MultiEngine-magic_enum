@@ -1,7 +1,7 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2022 Daniil Goncharov <neargye@gmail.com>.
-// Copyright (c) 2020 - 2022 Bela Schaum <schaumb@gmail.com>.
+// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 // SOFTWARE.
 
 #include <iostream>
+
 #define MAGIC_ENUM_ENABLE_HASH
 #include <magic_enum_switch.hpp>
 
@@ -38,8 +39,8 @@ constexpr std::string_view DoWork<Color::GREEN>() {
 }
 
 // Helper type for the visitor pattern.
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <typename... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 int main() {
   Color c = Color::RED;

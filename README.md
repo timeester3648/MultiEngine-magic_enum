@@ -12,9 +12,10 @@
 ```
 
 [![Github releases](https://img.shields.io/github/release/Neargye/magic_enum.svg)](https://github.com/Neargye/magic_enum/releases)
-[![Conan package](https://img.shields.io/badge/Conan-package-blueviolet)](https://conan.io/center/magic_enum)
+[![Conan package](https://img.shields.io/badge/Conan-package-blueviolet)](https://conan.io/center/recipes/magic_enum)
 [![Vcpkg package](https://img.shields.io/badge/Vcpkg-package-blueviolet)](https://github.com/microsoft/vcpkg/tree/master/ports/magic-enum)
 [![Build2 package](https://img.shields.io/badge/Build2-package-blueviolet)](https://www.cppget.org/magic_enum?q=magic_enum)
+[![Meson wrap](https://img.shields.io/badge/Meson-wrap-blueviolet)](https://github.com/mesonbuild/wrapdb/blob/master/subprojects/magic_enum.wrap)
 [![License](https://img.shields.io/github/license/Neargye/magic_enum.svg)](LICENSE)
 [![Try online](https://img.shields.io/badge/try-online-blue.svg)](https://wandbox.org/permlink/JPMZqT9mgaUdooyC)
 [![Compiler explorer](https://img.shields.io/badge/compiler_explorer-online-blue.svg)](https://godbolt.org/z/BxfmsH)
@@ -23,46 +24,13 @@
 
 Header-only C++17 library provides static reflection for enums, work with any enum type without any macro or boilerplate code.
 
-* `enum_cast` obtains enum value from string or integer.
-* `enum_value` returns enum value at specified index.
-* `enum_values` obtains enum value sequence.
-* `enum_count` returns number of enum values.
-* `enum_integer` obtains integer value from enum value.
-* `enum_name` returns name from enum value.
-* `enum_names` obtains string enum name sequence.
-* `enum_entries` obtains pair (value enum, string enum name) sequence.
-* `enum_index` obtains index in enum value sequence from enum value.
-* `enum_contains` checks whether enum contains enumerator with such value.
-* `enum_type_name` returns name of enum type.
-* `enum_fuse` allows multidimensional switch/cases.
-* `enum_switch` allows runtime enum value transformation to constexpr context.
-* `enum_for_each` calls a function with all enum constexpr value.
-* `is_unscoped_enum` checks whether type is an [Unscoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Unscoped_enumeration).
-* `is_scoped_enum` checks whether type is an [Scoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Scoped_enumerations).
-* `underlying_type` improved UB-free "SFINAE-friendly" [underlying_type](https://en.cppreference.com/w/cpp/types/underlying_type).
-* `ostream_operators` ostream operators for enums.
-* `bitwise_operators` bitwise operators for enums.
-* `containers::array` array container for enums.
-* `containers::bitset` bitset container for enums.
-* `containers::set` set container for enums.
-
 ## Documentation
 
 * [Reference](doc/reference.md)
 * [Limitations](doc/limitations.md)
 * [Integration](#Integration)
 
-## Features
-
-* C++17
-* Header-only
-* Dependency-free
-* Compile-time
-* Enum to string
-* String to enum
-* Iterating over enum
-
-## [Examples](example/example.cpp)
+## [Examples](example/)
 
 * Enum value to string
 
@@ -81,6 +49,13 @@ Header-only C++17 library provides static reflection for enums, work with any en
     // color.value() -> Color::GREEN
   }
 
+  // case insensitive enum_cast
+  auto color = magic_enum::enum_cast<Color>(value, magic_enum::case_insensitive);
+
+  // enum_cast with BinaryPredicate
+  auto color = magic_enum::enum_cast<Color>(value, [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }
+
+  // enum_cast with default
   auto color_or_default = magic_enum::enum_cast<Color>(value).value_or(Color::NONE);
   ```
 
@@ -123,8 +98,8 @@ Header-only C++17 library provides static reflection for enums, work with any en
 
   ```cpp
   Color color = Color::RED;
-  auto color_integer = magic_enum::enum_integer(color);
-  // color -> 1
+  auto color_integer = magic_enum::enum_integer(color); // or magic_enum::enum_underlying(color);
+  // color_integer -> 1
   ```
 
 * Enum names sequence
@@ -153,7 +128,7 @@ Header-only C++17 library provides static reflection for enums, work with any en
   // ...
   }
   ```
-  
+
 * Enum switch runtime value as constexpr constant
   ```cpp
   Color color = Color::RED;
@@ -171,9 +146,58 @@ Header-only C++17 library provides static reflection for enums, work with any en
   });
   ```
 
-* Ostream operator for enum
+* Check if enum contains
 
   ```cpp
+  magic_enum::enum_contains(Color::GREEN); // -> true
+  magic_enum::enum_contains<Color>(2); // -> true
+  magic_enum::enum_contains<Color>(123); // -> false
+  magic_enum::enum_contains<Color>("GREEN"); // -> true
+  magic_enum::enum_contains<Color>("fda"); // -> false
+  ```
+
+* Enum index in sequence
+
+  ```cpp
+  constexpr auto color_index = magic_enum::enum_index(Color::BLUE);
+  // color_index.value() -> 1
+  // color_index.has_value() -> true
+  ```
+
+* Functions for flags
+
+  ```cpp
+  enum Directions : std::uint64_t {
+    Left = 1,
+    Down = 2,
+    Up = 4,
+    Right = 8,
+  };
+  template <>
+  struct magic_enum::customize::enum_range<Directions> {
+    static constexpr bool is_flags = true;
+  };
+
+  magic_enum::enum_flags_name(Directions::Up | Directions::Right); // directions_name -> "Directions::Up|Directions::Right"
+  magic_enum::enum_flags_contains(Directions::Up | Directions::Right); // -> true
+  magic_enum::enum_flags_cast(3); // -> "Directions::Left|Directions::Down"
+  ```
+
+* Enum type name
+
+  ```cpp
+  Color color = Color::RED;
+  auto type_name = magic_enum::enum_type_name<decltype(color)>();
+  // type_name -> "Color"
+  ```
+
+* IOstream operator for enum
+
+  ```cpp
+  using namespace magic_enum::ostream_operators; // out-of-the-box ostream operators for enums.
+  Color color = Color::BLUE;
+  std::cout << color << std::endl; // "BLUE"
+
   using namespace magic_enum::ostream_operators; // out-of-the-box ostream operators for enums.
   Color color = Color::BLUE;
   std::cout << color << std::endl; // "BLUE"
@@ -259,6 +283,14 @@ Header-only C++17 library provides static reflection for enums, work with any en
   // size -> 3
   ```
 
+* Improved UB-free "SFINAE-friendly" [underlying_type](https://en.cppreference.com/w/cpp/types/underlying_type).
+
+  ```cpp
+  magic_enum::underlying_type<color>::type -> int
+
+  // Helper types.
+  magic_enum::underlying_type_t<Direction> -> int
+  ```
 ## Remarks
 
 * `magic_enum` does not pretend to be a silver bullet for reflection for enums, it was originally designed for small enum.
@@ -267,7 +299,7 @@ Header-only C++17 library provides static reflection for enums, work with any en
 
 ## Integration
 
-* You should add the required file [magic_enum.hpp](include/magic_enum.hpp).
+* You should add the required file [magic_enum.hpp](include/magic_enum.hpp), and optionally other headers from [include dir](include/) or [release archive](https://github.com/Neargye/magic_enum/releases/latest). Alternatively, you can build the library with CMake.
 
 * If you are using [vcpkg](https://github.com/Microsoft/vcpkg/) on your project for external dependencies, then you can use the [magic-enum package](https://github.com/microsoft/vcpkg/tree/master/ports/magic-enum).
 
@@ -300,7 +332,7 @@ Header-only C++17 library provides static reflection for enums, work with any en
   ```
   bazel build //...
   bazel test //...
-  bazel run //:example
+  bazel run //example
   ```
 
   (Note that you must use a supported compiler or specify it with `export CC= <compiler>`.)
@@ -314,7 +346,7 @@ Header-only C++17 library provides static reflection for enums, work with any en
 
 ## Compiler compatibility
 
-* Clang/LLVM >= 6
+* Clang/LLVM >= 5
 * MSVC++ >= 14.11 / Visual Studio >= 2017
 * Xcode >= 10
 * GCC >= 9

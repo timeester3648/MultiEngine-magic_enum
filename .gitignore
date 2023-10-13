@@ -51,6 +51,7 @@ _deps
 
 ### Bazel build artifacts ###
 /bazel-*
+/test/bazel-*
 
 # exclude project files
 **.sln

@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2022 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -29,6 +29,8 @@
 #define MAGIC_ENUM_RANGE_MAX 120
 #include <magic_enum.hpp>
 #include <magic_enum_fuse.hpp>
+#include <magic_enum_iostream.hpp>
+#include <magic_enum_utility.hpp>
 
 #include <array>
 #include <cctype>
@@ -50,22 +52,22 @@ enum class Numbers : int { one = 1, two, three, many = 127 };
 
 enum Directions { Up = 85, Down = -42, Right = 120, Left = -120 };
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-enum class Language : int { 日本語 = 10, 한국어 = 20, English = 30, 😃 = 40 };
-#endif
-
 enum number : unsigned long {
   one = 100,
   two = 200,
   three = 300,
   four = 400,
-
 #if defined(MAGIC_ENUM_SUPPORTED_ALIASES)
   _1 = one,
   _2 = two,
   _3 = three,
   _4 = four
 #endif
+};
+template <>
+struct magic_enum::customize::enum_range<number> {
+  static constexpr int min = 100;
+  static constexpr int max = 300;
 };
 
 enum class crc_hack {
@@ -75,12 +77,6 @@ enum class crc_hack {
 enum class crc_hack_2 {
   b5a7b602ab754d7ab30fb42c4fb28d82,
   d19f2e9e82d14b96be4fa12b8a27ee9f
-};
-
-template <>
-struct magic_enum::customize::enum_range<number> {
-  static constexpr int min = 100;
-  static constexpr int max = 300;
 };
 
 enum class MaxUsedAsInvalid : std::uint8_t {
@@ -132,20 +128,11 @@ TEST_CASE("enum_cast") {
     REQUIRE(enum_cast<Directions>("Left").value() == Directions::Left);
     REQUIRE_FALSE(enum_cast<Directions>("None").has_value());
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_cast<Language>("日本語");
-    REQUIRE(enum_cast<Language&>("한국어").value() == Language::한국어);
-    REQUIRE(enum_cast<const Language>("English").value() == Language::English);
-    REQUIRE(lang.value() == Language::日本語);
-    REQUIRE(enum_cast<Language>("😃").value() == Language::😃);
-    REQUIRE_FALSE(enum_cast<Language>("Französisch").has_value());
-#else // !defined(MAGIC_ENUM_ENABLE_NONASCII)
     constexpr auto dr2 = enum_cast<Directions>("RIGHT", case_insensitive);
     REQUIRE(dr2.value() == Directions::Right);
     REQUIRE(enum_cast<Directions&>("up", case_insensitive).value() == Directions::Up);
     REQUIRE(enum_cast<const Directions>("dOwN", case_insensitive).value() == Directions::Down);
     REQUIRE_FALSE(enum_cast<Directions>("Left-", case_insensitive).has_value());
-#endif
 
     constexpr auto nt = enum_cast<number>("three");
     REQUIRE(enum_cast<number>("one").value() == number::one);
@@ -154,14 +141,14 @@ TEST_CASE("enum_cast") {
     REQUIRE_FALSE(enum_cast<number>("four").has_value());
     REQUIRE_FALSE(enum_cast<number>("None").has_value());
 
-    REQUIRE(magic_enum::enum_cast<crc_hack>("b5a7b602ab754d7ab30fb42c4fb28d82").has_value());
-    REQUIRE_FALSE(magic_enum::enum_cast<crc_hack>("d19f2e9e82d14b96be4fa12b8a27ee9f").has_value());
+    REQUIRE(enum_cast<crc_hack>("b5a7b602ab754d7ab30fb42c4fb28d82").has_value());
+    REQUIRE_FALSE(enum_cast<crc_hack>("d19f2e9e82d14b96be4fa12b8a27ee9f").has_value());
 
-    constexpr auto crc = magic_enum::enum_cast<crc_hack_2>("b5a7b602ab754d7ab30fb42c4fb28d82");
+    constexpr auto crc = enum_cast<crc_hack_2>("b5a7b602ab754d7ab30fb42c4fb28d82");
     REQUIRE(crc.value() == crc_hack_2::b5a7b602ab754d7ab30fb42c4fb28d82);
-    REQUIRE(magic_enum::enum_cast<crc_hack_2>("d19f2e9e82d14b96be4fa12b8a27ee9f").value() == crc_hack_2::d19f2e9e82d14b96be4fa12b8a27ee9f);
+    REQUIRE(enum_cast<crc_hack_2>("d19f2e9e82d14b96be4fa12b8a27ee9f").value() == crc_hack_2::d19f2e9e82d14b96be4fa12b8a27ee9f);
 
-    REQUIRE(magic_enum::enum_cast<BoolTest>("Nay").has_value());
+    REQUIRE(enum_cast<BoolTest>("Nay").has_value());
   }
 
   SECTION("integer") {
@@ -185,15 +172,6 @@ TEST_CASE("enum_cast") {
     REQUIRE(dr.value() == Directions::Right);
     REQUIRE(enum_cast<Directions>(-120).value() == Directions::Left);
     REQUIRE_FALSE(enum_cast<Directions>(0).has_value());
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_cast<Language>(10);
-    REQUIRE(enum_cast<Language&>(20).value() == Language::한국어);
-    REQUIRE(enum_cast<const Language>(30).value() == Language::English);
-    REQUIRE(lang.value() == Language::日本語);
-    REQUIRE(enum_cast<Language>(40).value() == Language::😃);
-    REQUIRE_FALSE(enum_cast<Language>(0).has_value());
-#endif
 
     constexpr auto nt = enum_cast<number>(300);
     REQUIRE(enum_cast<number>(100).value() == number::one);
@@ -230,16 +208,6 @@ TEST_CASE("enum_integer") {
   REQUIRE(enum_integer(Directions::Up) == 85);
   REQUIRE(dr == 120);
   REQUIRE(enum_integer(static_cast<Directions>(0)) == 0);
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_integer(Language::日本語);
-    Language korean = Language::한국어;
-    REQUIRE(enum_integer<Language&>(korean) == 20);
-    REQUIRE(enum_integer<const Language>(Language::English) == 30);
-    REQUIRE(enum_integer(Language::😃) == 40);
-    REQUIRE(lang == 10);
-    REQUIRE(enum_integer(static_cast<Language>(0)) == 0);
-#endif
 
   constexpr auto nt = enum_integer(number::three);
   REQUIRE(enum_integer(number::one) == 100);
@@ -278,16 +246,6 @@ TEST_CASE("enum_index") {
   REQUIRE(dr.value() == 3);
   REQUIRE_FALSE(enum_index(static_cast<Directions>(0)).has_value());
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_index<Language>(Language::日本語);
-    Language korean = Language::한국어;
-    REQUIRE(enum_index<Language&>(korean) == 1);
-    REQUIRE(enum_index<const Language>(Language::English).value() == 2);
-    REQUIRE(enum_index(Language::😃) == 3);
-    REQUIRE(lang.value() == 0);
-    REQUIRE_FALSE(enum_index(static_cast<Language>(0)).has_value());
-#endif
-
   constexpr auto nt = enum_index(number::three);
   REQUIRE(enum_index<number::one>() == 0);
   REQUIRE(enum_index(number::one).value() == 0);
@@ -324,16 +282,6 @@ TEST_CASE("enum_contains") {
     REQUIRE(dr);
     REQUIRE_FALSE(enum_contains(static_cast<Directions>(0)));
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_contains(Language::日本語);
-    Language korean = Language::한국어;
-    REQUIRE(enum_contains<Language&>(korean));
-    REQUIRE(enum_contains<const Language>(Language::English));
-    REQUIRE(enum_contains(Language::😃));
-    REQUIRE(lang);
-    REQUIRE_FALSE(enum_contains(static_cast<Directions>(0)));
-#endif
-
     constexpr auto nt = enum_contains(number::three);
     REQUIRE(enum_contains(number::one));
     REQUIRE(enum_contains<number&>(number::two));
@@ -363,14 +311,6 @@ TEST_CASE("enum_contains") {
     REQUIRE(enum_contains<const Directions>(Directions::Down));
     REQUIRE(enum_contains<Directions>(Directions::Up));
     REQUIRE_FALSE(enum_contains<Directions>(static_cast<Directions>(0)));
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_integer(Language::日本語);
-    REQUIRE(enum_contains<Language&>(lang));
-    REQUIRE(enum_contains<const Language>(Language::한국어));
-    REQUIRE(enum_contains<Language>(Language::😃));
-    REQUIRE_FALSE(enum_contains<Language>(static_cast<Language>(0)));
-#endif
 
     constexpr auto nt = enum_contains<number>(number::three);
     REQUIRE(enum_contains<number>(number::one));
@@ -408,20 +348,11 @@ TEST_CASE("enum_contains") {
     REQUIRE(enum_contains<Directions>("Left"));
     REQUIRE_FALSE(enum_contains<Directions>("None"));
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    auto lang = std::string{"日本語"};
-    REQUIRE(enum_contains<Language&>("한국어"));
-    REQUIRE(enum_contains<Language>("English"));
-    REQUIRE(enum_contains<const Language>(lang));
-    REQUIRE(enum_contains<Language>("😃"));
-    REQUIRE_FALSE(enum_contains<Language>("None"));
-#else
     auto dr2 = std::string{"RIGHT"};
     REQUIRE(enum_contains<const Directions>(dr2, case_insensitive));
     REQUIRE(enum_contains<Directions&>("up", case_insensitive));
     REQUIRE(enum_contains<Directions>("dOwN", case_insensitive));
     REQUIRE_FALSE(enum_contains<Directions>("Left-", case_insensitive));
-#endif
 
     constexpr auto nt = enum_contains<number>("three");
     REQUIRE(enum_contains<number>("one"));
@@ -464,14 +395,6 @@ TEST_CASE("enum_value") {
   REQUIRE(enum_value<Directions, 2>() == Directions::Up);
   REQUIRE(enum_value<Directions, 3>() == Directions::Right);
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr auto lang = enum_value<Language>(3);
-    REQUIRE(enum_value<Language&>(0) == Language::日本語);
-    REQUIRE(enum_value<const Language>(1) == Language::한국어);
-    REQUIRE(enum_value<Language>(2) == Language::English);
-    REQUIRE(lang == Language::😃);
-#endif
-
   constexpr auto nt = enum_value<number>(2);
   REQUIRE(enum_value<number>(0) == number::one);
   REQUIRE(enum_value<number>(1) == number::two);
@@ -486,7 +409,7 @@ TEST_CASE("enum_value") {
 }
 
 TEST_CASE("enum_values") {
-  REQUIRE(std::is_same_v<decltype(magic_enum::enum_values<Color>()), const std::array<Color, 3>&>);
+  REQUIRE(std::is_same_v<decltype(enum_values<Color>()), const std::array<Color, 3>&>);
 
   constexpr auto& s1 = enum_values<Color&>();
   REQUIRE(s1 == std::array<Color, 3>{{Color::RED, Color::GREEN, Color::BLUE}});
@@ -505,11 +428,6 @@ TEST_CASE("enum_values") {
 
   constexpr auto& s6 = enum_values<MaxUsedAsInvalid>();
   REQUIRE(s6 == std::array<MaxUsedAsInvalid, 2>{{MaxUsedAsInvalid::ONE, MaxUsedAsInvalid::TWO}});
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  constexpr auto& s7 = enum_values<const Language>();
-  REQUIRE(s7 == std::array<Language, 4>{{Language::日本語, Language::한국어, Language::English, Language::😃}});
-#endif
 }
 
 TEST_CASE("enum_count") {
@@ -530,12 +448,67 @@ TEST_CASE("enum_count") {
 
   constexpr auto s6 = enum_count<MaxUsedAsInvalid>();
   REQUIRE(s6 == 2);
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  constexpr auto s7 = enum_count<Language>();
-  REQUIRE(s7 == 4);
-#endif
 }
+
+enum lt1 { s1, loooooooooooooooooooong1 };
+enum lt2 : unsigned { s2, loooooooooooooooooooong2 };
+enum class lt3 { s3, loooooooooooooooooooong3 };
+enum class lt4 : unsigned { s4, loooooooooooooooooooong4 };
+class foo1 {
+ public:
+  enum class lt5 { s5, loooooooooooooooooooong5 };
+};
+class foo2 {
+ public:
+  enum lt6 { s6, loooooooooooooooooooong6 };
+};
+
+namespace boo1 {
+enum lt1 { s1, loooooooooooooooooooong1 };
+enum lt2 : unsigned { s2, loooooooooooooooooooong2 };
+enum class lt3 { s3, loooooooooooooooooooong3 };
+enum class lt4 : unsigned { s4, loooooooooooooooooooong4 };
+class foo1 {
+ public:
+  enum class lt5 { s5, loooooooooooooooooooong5 };
+};
+class foo2 {
+ public:
+  enum lt6 { s6, loooooooooooooooooooong6 };
+};
+} // namespace boo1
+
+namespace boo2 {
+namespace boo3 {
+enum lt1 { s1, loooooooooooooooooooong1 };
+enum lt2 : unsigned { s2, loooooooooooooooooooong2 };
+enum class lt3 { s3, loooooooooooooooooooong3 };
+enum class lt4 : unsigned { s4, loooooooooooooooooooong4 };
+class foo1 {
+ public:
+  enum class lt5 { s5, loooooooooooooooooooong5 };
+};
+class foo2 {
+ public:
+  enum lt6 { s6, loooooooooooooooooooong6 };
+};
+} // namespace boo2::boo3
+} // namespace boo2
+
+namespace {
+enum a_lt1 { s1, loooooooooooooooooooong1 };
+enum a_lt2 : unsigned { s2, loooooooooooooooooooong2 };
+enum class a_lt3 { s3, loooooooooooooooooooong3 };
+enum class a_lt4 : unsigned { s4, loooooooooooooooooooong4 };
+class a_foo1 {
+ public:
+  enum class a_lt5 { s5, loooooooooooooooooooong5 };
+};
+class a_foo2 {
+ public:
+  enum a_lt6 { s6, loooooooooooooooooooong6 };
+};
+} // namespace
 
 TEST_CASE("enum_name") {
   SECTION("automatic storage") {
@@ -546,7 +519,8 @@ TEST_CASE("enum_name") {
     REQUIRE(cr_name == "red");
     REQUIRE(enum_name<Color&>(cb) == "BLUE");
     REQUIRE(enum_name<as_flags<false>>(cm[1]) == "GREEN");
-    REQUIRE(enum_name<detail::value_type::default_value>(static_cast<Color>(0)).empty());
+    REQUIRE(enum_name<as_common<true>>(cm[1]) == "GREEN");
+    REQUIRE(enum_name<as_flags<false>>(static_cast<Color>(0)).empty());
 
     constexpr Numbers no = Numbers::one;
     constexpr auto no_name = enum_name(no);
@@ -565,17 +539,6 @@ TEST_CASE("enum_name") {
     REQUIRE(enum_name(Directions::Left) == "Left");
     REQUIRE(enum_name(static_cast<Directions>(0)).empty());
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr Language lang = Language::日本語;
-    constexpr auto lang_name = enum_name(lang);
-    Language lk = Language::한국어;
-    REQUIRE(enum_name<Language&>(lk) == "한국어");
-    REQUIRE(enum_name<const Language>(Language::English) == "English");
-    REQUIRE(lang_name == "日本語");
-    REQUIRE(enum_name(Language::😃) == "😃");
-    REQUIRE(enum_name(static_cast<Language>(0)).empty());
-#endif
-
     constexpr number nt = number::three;
     constexpr auto nt_name = enum_name(nt);
     REQUIRE(enum_name(number::one) == "one");
@@ -585,6 +548,70 @@ TEST_CASE("enum_name") {
     REQUIRE(enum_name(static_cast<number>(0)).empty());
 
     REQUIRE(enum_name(MaxUsedAsInvalid::ONE) == "ONE");
+
+    REQUIRE(enum_name(lt1::s1) == "s1");
+    REQUIRE(enum_name(lt1::loooooooooooooooooooong1) == "loooooooooooooooooooong1");
+    REQUIRE(enum_name(lt2::s2) == "s2");
+    REQUIRE(enum_name(lt2::loooooooooooooooooooong2) == "loooooooooooooooooooong2");
+    REQUIRE(enum_name(lt3::s3) == "s3");
+    REQUIRE(enum_name(lt3::loooooooooooooooooooong3) == "loooooooooooooooooooong3");
+    REQUIRE(enum_name(lt4::s4) == "s4");
+    REQUIRE(enum_name(lt4::loooooooooooooooooooong4) == "loooooooooooooooooooong4");
+    REQUIRE(enum_name(foo1::lt5::s5) == "s5");
+    REQUIRE(enum_name(foo1::lt5::loooooooooooooooooooong5) == "loooooooooooooooooooong5");
+    REQUIRE(enum_name(foo2::s6) == "s6");
+    REQUIRE(enum_name(foo2::loooooooooooooooooooong6) == "loooooooooooooooooooong6");
+
+    REQUIRE_FALSE(enum_name((foo1::lt5)12).size());
+    REQUIRE_FALSE(enum_name((foo2::lt6)12).size());
+
+    REQUIRE(enum_name(boo1::lt1::s1) == "s1");
+    REQUIRE(enum_name(boo1::lt1::loooooooooooooooooooong1) == "loooooooooooooooooooong1");
+    REQUIRE(enum_name(boo1::lt2::s2) == "s2");
+    REQUIRE(enum_name(boo1::lt2::loooooooooooooooooooong2) == "loooooooooooooooooooong2");
+    REQUIRE(enum_name(boo1::lt3::s3) == "s3");
+    REQUIRE(enum_name(boo1::lt3::loooooooooooooooooooong3) == "loooooooooooooooooooong3");
+    REQUIRE(enum_name(boo1::lt4::s4) == "s4");
+    REQUIRE(enum_name(boo1::lt4::loooooooooooooooooooong4) == "loooooooooooooooooooong4");
+    REQUIRE(enum_name(boo1::foo1::lt5::s5) == "s5");
+    REQUIRE(enum_name(boo1::foo1::lt5::loooooooooooooooooooong5) == "loooooooooooooooooooong5");
+    REQUIRE(enum_name(boo1::foo2::s6) == "s6");
+    REQUIRE(enum_name(boo1::foo2::loooooooooooooooooooong6) == "loooooooooooooooooooong6");
+
+    REQUIRE_FALSE(enum_name((boo1::foo1::lt5)12).size());
+    REQUIRE_FALSE(enum_name((boo1::foo2::lt6)12).size());
+
+    REQUIRE(enum_name(boo2::boo3::lt1::s1) == "s1");
+    REQUIRE(enum_name(boo2::boo3::lt1::loooooooooooooooooooong1) == "loooooooooooooooooooong1");
+    REQUIRE(enum_name(boo2::boo3::lt2::s2) == "s2");
+    REQUIRE(enum_name(boo2::boo3::lt2::loooooooooooooooooooong2) == "loooooooooooooooooooong2");
+    REQUIRE(enum_name(boo2::boo3::lt3::s3) == "s3");
+    REQUIRE(enum_name(boo2::boo3::lt3::loooooooooooooooooooong3) == "loooooooooooooooooooong3");
+    REQUIRE(enum_name(boo2::boo3::lt4::s4) == "s4");
+    REQUIRE(enum_name(boo2::boo3::lt4::loooooooooooooooooooong4) == "loooooooooooooooooooong4");
+    REQUIRE(enum_name(boo2::boo3::foo1::lt5::s5) == "s5");
+    REQUIRE(enum_name(boo2::boo3::foo1::lt5::loooooooooooooooooooong5) == "loooooooooooooooooooong5");
+    REQUIRE(enum_name(boo2::boo3::foo2::s6) == "s6");
+    REQUIRE(enum_name(boo2::boo3::foo2::loooooooooooooooooooong6) == "loooooooooooooooooooong6");
+
+    REQUIRE_FALSE(enum_name((boo2::boo3::foo1::lt5)12).size());
+    REQUIRE_FALSE(enum_name((boo2::boo3::foo2::lt6)12).size());
+
+    REQUIRE(enum_name(a_lt1::s1) == "s1");
+    REQUIRE(enum_name(a_lt1::loooooooooooooooooooong1) == "loooooooooooooooooooong1");
+    REQUIRE(enum_name(a_lt2::s2) == "s2");
+    REQUIRE(enum_name(a_lt2::loooooooooooooooooooong2) == "loooooooooooooooooooong2");
+    REQUIRE(enum_name(a_lt3::s3) == "s3");
+    REQUIRE(enum_name(a_lt3::loooooooooooooooooooong3) == "loooooooooooooooooooong3");
+    REQUIRE(enum_name(a_lt4::s4) == "s4");
+    REQUIRE(enum_name(a_lt4::loooooooooooooooooooong4) == "loooooooooooooooooooong4");
+    REQUIRE(enum_name(a_foo1::a_lt5::s5) == "s5");
+    REQUIRE(enum_name(a_foo1::a_lt5::loooooooooooooooooooong5) == "loooooooooooooooooooong5");
+    REQUIRE(enum_name(a_foo2::s6) == "s6");
+    REQUIRE(enum_name(a_foo2::loooooooooooooooooooong6) == "loooooooooooooooooooong6");
+
+    REQUIRE_FALSE(enum_name((a_foo1::a_lt5)12).size());
+    REQUIRE_FALSE(enum_name((a_foo2::a_lt6)12).size());
   }
 
   SECTION("static storage") {
@@ -609,15 +636,6 @@ TEST_CASE("enum_name") {
     REQUIRE(dr_name == "Right");
     REQUIRE(enum_name<Directions::Left>() == "Left");
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    constexpr Language lang = Language::日本語;
-    constexpr auto lang_name = enum_name<lang>();
-    REQUIRE(enum_name<Language::한국어>() == "한국어");
-    REQUIRE(enum_name<Language::English>() == "English");
-    REQUIRE(lang_name == "日本語");
-    REQUIRE(enum_name<Language::😃>() == "😃");
-#endif
-
     constexpr number nt = number::three;
     constexpr auto nt_name = enum_name<nt>();
     REQUIRE(enum_name<number::one>() == "one");
@@ -631,7 +649,7 @@ TEST_CASE("enum_name") {
 }
 
 TEST_CASE("enum_names") {
-  REQUIRE(std::is_same_v<decltype(magic_enum::enum_names<Color>()), const std::array<std::string_view, 3>&>);
+  REQUIRE(std::is_same_v<decltype(enum_names<Color>()), const std::array<std::string_view, 3>&>);
 
   constexpr auto& s1 = enum_names<Color&>();
   REQUIRE(s1 == std::array<std::string_view, 3>{{"red", "GREEN", "BLUE"}});
@@ -644,15 +662,10 @@ TEST_CASE("enum_names") {
 
   constexpr auto& s4 = enum_names<number>();
   REQUIRE(s4 == std::array<std::string_view, 3>{{"one", "two", "three"}});
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  constexpr auto& s5 = enum_names<const Language>();
-  REQUIRE(s5 == std::array<std::string_view, 4>{{"日本語", "한국어", "English", "😃"}});
-#endif
 }
 
 TEST_CASE("enum_entries") {
-  REQUIRE(std::is_same_v<decltype(magic_enum::enum_entries<Color>()), const std::array<std::pair<Color, std::string_view>, 3>&>);
+  REQUIRE(std::is_same_v<decltype(enum_entries<Color>()), const std::array<std::pair<Color, std::string_view>, 3>&>);
 
   constexpr auto& s1 = enum_entries<Color&>();
   REQUIRE(s1 == std::array<std::pair<Color, std::string_view>, 3>{{{Color::RED, "red"}, {Color::GREEN, "GREEN"}, {Color::BLUE, "BLUE"}}});
@@ -665,11 +678,6 @@ TEST_CASE("enum_entries") {
 
   constexpr auto& s4 = enum_entries<number>();
   REQUIRE(s4 == std::array<std::pair<number, std::string_view>, 3>{{{number::one, "one"}, {number::two, "two"}, {number::three, "three"}}});
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  constexpr auto& s5 = enum_entries<const Language>();
-  REQUIRE(s5 == std::array<std::pair<Language, std::string_view>, 4>{{{Language::日本語, "日本語"}, {Language::한국어, "한국어"}, {Language::English, "English"}, {Language::😃, "😃"}}});
-#endif
 }
 
 TEST_CASE("ostream_operators") {
@@ -701,15 +709,6 @@ TEST_CASE("ostream_operators") {
   test_ostream(static_cast<Directions>(0), "0");
   test_ostream(std::make_optional(static_cast<Directions>(0)), "0");
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  test_ostream(std::make_optional(Language::日本語), "日本語");
-  test_ostream(Language::한국어, "한국어");
-  test_ostream(Language::English, "English");
-  test_ostream(Language::😃, "😃");
-  test_ostream(static_cast<Language>(0), "0");
-  test_ostream(std::make_optional(static_cast<Language>(0)), "0");
-#endif
-
   test_ostream(std::make_optional(number::one), "one");
   test_ostream(number::two, "two");
   test_ostream(number::three, "three");
@@ -738,12 +737,6 @@ TEST_CASE("istream_operators") {
   test_istream(Directions::Right, "Right");
   test_istream(Directions::Left, "Left");
 
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  test_istream(Language::한국어, "한국어");
-  test_istream(Language::English, "English");
-  test_istream(Language::😃, "😃");
-#endif
-
   test_istream(number::two, "two");
   test_istream(number::three, "three");
 }
@@ -755,9 +748,6 @@ TEST_CASE("bitwise_operators") {
     REQUIRE(enum_integer(~Color::RED) == ~enum_integer(Color::RED));
     REQUIRE(enum_integer(~Numbers::one) == ~enum_integer(Numbers::one));
     REQUIRE(enum_integer(~Directions::Up) == ~enum_integer(Directions::Up));
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(enum_integer(~Language::日本語) == ~enum_integer(Language::日本語));
-#endif
     REQUIRE(enum_integer(~number::one) == ~enum_integer(number::one));
   }
 
@@ -765,9 +755,6 @@ TEST_CASE("bitwise_operators") {
     REQUIRE(enum_integer(Color::RED | Color::BLUE) == (enum_integer(Color::RED) | enum_integer(Color::BLUE)));
     REQUIRE(enum_integer(Numbers::one | Numbers::two) == (enum_integer(Numbers::one) | enum_integer(Numbers::two)));
     REQUIRE(enum_integer(Directions::Up | Directions::Down) == (enum_integer(Directions::Up) | enum_integer(Directions::Down)));
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(enum_integer(Language::日本語 | Language::한국어) == (enum_integer(Language::日本語) | enum_integer(Language::한국어)));
-#endif
     REQUIRE(enum_integer(number::one | number::two) == (enum_integer(number::one) | enum_integer(number::two)));
   }
 
@@ -775,9 +762,6 @@ TEST_CASE("bitwise_operators") {
     REQUIRE(enum_integer(Color::RED & Color::BLUE) == (enum_integer(Color::RED) & enum_integer(Color::BLUE)));
     REQUIRE(enum_integer(Numbers::one & Numbers::two) == (enum_integer(Numbers::one) & enum_integer(Numbers::two)));
     REQUIRE(enum_integer(Directions::Up & Directions::Down) == (enum_integer(Directions::Up) & enum_integer(Directions::Down)));
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(enum_integer(Language::日本語 & Language::한국어) == (enum_integer(Language::日本語) & enum_integer(Language::한국어)));
-#endif
     REQUIRE(enum_integer(number::one & number::two) == (enum_integer(number::one) & enum_integer(number::two)));
   }
 
@@ -785,9 +769,6 @@ TEST_CASE("bitwise_operators") {
     REQUIRE(enum_integer(Color::RED ^ Color::BLUE) == (enum_integer(Color::RED) ^ enum_integer(Color::BLUE)));
     REQUIRE(enum_integer(Numbers::one ^ Numbers::two) == (enum_integer(Numbers::one) ^ enum_integer(Numbers::two)));
     REQUIRE(enum_integer(Directions::Up ^ Directions::Down) == (enum_integer(Directions::Up) ^ enum_integer(Directions::Down)));
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(enum_integer(Language::日本語 ^ Language::한국어) == (enum_integer(Language::日本語) ^ enum_integer(Language::한국어)));
-#endif
     REQUIRE(enum_integer(number::one ^ number::two) == (enum_integer(number::one) ^ enum_integer(number::two)));
   }
 
@@ -807,12 +788,6 @@ TEST_CASE("bitwise_operators") {
     number x4 = number::one;
     x4 |= number::two;
     REQUIRE(enum_integer(x4) == (enum_integer(number::one) | enum_integer(number::two)));
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    Language x5 = Language::日本語;
-    x5 |= Language::한국어;
-    REQUIRE(enum_integer(x5) == (enum_integer(Language::日本語) | enum_integer(Language::한국어)));
-#endif
   }
 
   SECTION("operator&=") {
@@ -831,12 +806,6 @@ TEST_CASE("bitwise_operators") {
     number x4 = number::one;
     x4 &= number::two;
     REQUIRE(enum_integer(x4) == (enum_integer(number::one) & enum_integer(number::two)));
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    Language x5 = Language::日本語;
-    x5 &= Language::한국어;
-    REQUIRE(enum_integer(x5) == (enum_integer(Language::日本語) & enum_integer(Language::한국어)));
-#endif
   }
 
   SECTION("operator^=") {
@@ -855,12 +824,6 @@ TEST_CASE("bitwise_operators") {
     number x4 = number::one;
     x4 ^= number::two;
     REQUIRE(enum_integer(x4) == (enum_integer(number::one) ^ enum_integer(number::two)));
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    Language x5 = Language::日本語;
-    x5 ^= Language::한국어;
-    REQUIRE(enum_integer(x5) == (enum_integer(Language::日本語) ^ enum_integer(Language::한국어)));
-#endif
   }
 }
 
@@ -868,9 +831,6 @@ TEST_CASE("type_traits") {
   REQUIRE_FALSE(is_unscoped_enum_v<Color>);
   REQUIRE_FALSE(is_unscoped_enum_v<Numbers>);
   REQUIRE(is_unscoped_enum_v<Directions>);
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  REQUIRE_FALSE(is_unscoped_enum_v<Language>);
-#endif
   REQUIRE(is_unscoped_enum_v<number>);
 
   REQUIRE(is_scoped_enum_v<Color>);
@@ -883,10 +843,39 @@ TEST_CASE("enum_type_name") {
   REQUIRE(enum_type_name<Color&>() == "Color");
   REQUIRE(enum_type_name<const Numbers>() == "Numbers");
   REQUIRE(enum_type_name<const Directions&>() == "Directions");
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-  REQUIRE(enum_type_name<const Language&>() == "Language");
-#endif
   REQUIRE(enum_type_name<number>() == "number");
+
+  REQUIRE(enum_type_name<lt1>() == "lt1");
+  REQUIRE(enum_type_name<lt2>() == "lt2");
+  REQUIRE(enum_type_name<lt3>() == "lt3");
+  REQUIRE(enum_type_name<lt4>() == "lt4");
+  REQUIRE(enum_type_name<foo1::lt5>() == "lt5");
+  REQUIRE(enum_type_name<foo2::lt6>() == "lt6");
+  REQUIRE(enum_type_name<decltype(foo2::s6)>() == "lt6");
+
+  REQUIRE(enum_type_name<boo1::lt1>() == "lt1");
+  REQUIRE(enum_type_name<boo1::lt2>() == "lt2");
+  REQUIRE(enum_type_name<boo1::lt3>() == "lt3");
+  REQUIRE(enum_type_name<boo1::lt4>() == "lt4");
+  REQUIRE(enum_type_name<boo1::foo1::lt5>() == "lt5");
+  REQUIRE(enum_type_name<boo1::foo2::lt6>() == "lt6");
+  REQUIRE(enum_type_name<decltype(boo1::foo2::s6)>() == "lt6");
+
+  REQUIRE(enum_type_name<boo2::boo3::lt1>() == "lt1");
+  REQUIRE(enum_type_name<boo2::boo3::lt2>() == "lt2");
+  REQUIRE(enum_type_name<boo2::boo3::lt3>() == "lt3");
+  REQUIRE(enum_type_name<boo2::boo3::lt4>() == "lt4");
+  REQUIRE(enum_type_name<boo2::boo3::foo1::lt5>() == "lt5");
+  REQUIRE(enum_type_name<boo2::boo3::foo2::lt6>() == "lt6");
+  REQUIRE(enum_type_name<decltype(boo2::boo3::foo2::s6)>() == "lt6");
+
+  REQUIRE(enum_type_name<a_lt1>() == "a_lt1");
+  REQUIRE(enum_type_name<a_lt2>() == "a_lt2");
+  REQUIRE(enum_type_name<a_lt3>() == "a_lt3");
+  REQUIRE(enum_type_name<a_lt4>() == "a_lt4");
+  REQUIRE(enum_type_name<a_foo1::a_lt5>() == "a_lt5");
+  REQUIRE(enum_type_name<a_foo2::a_lt6>() == "a_lt6");
+  REQUIRE(enum_type_name<decltype(a_foo2::s6)>() == "a_lt6");
 }
 
 #if defined(MAGIC_ENUM_SUPPORTED_ALIASES)
@@ -923,76 +912,64 @@ TEST_CASE("extrema") {
   };
 
   REQUIRE(magic_enum::enum_name<BadColor>(BadColor::NONE).empty());
-  REQUIRE_FALSE(magic_enum::enum_cast<BadColor>(std::numeric_limits<std::uint64_t>::max()).has_value());
+  REQUIRE_FALSE(enum_cast<BadColor>(std::numeric_limits<std::uint64_t>::max()).has_value());
   REQUIRE_FALSE(magic_enum::enum_contains<BadColor>(std::numeric_limits<std::uint64_t>::max()));
   REQUIRE_FALSE(magic_enum::enum_contains<BadColor>(BadColor::NONE));
 
   SECTION("min") {
     REQUIRE(magic_enum::customize::enum_range<BadColor>::min == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::reflected_min_v<BadColor, false> == 0);
-    REQUIRE(magic_enum::detail::min_v<BadColor> == 0);
+    REQUIRE(magic_enum::detail::reflected_min<BadColor, as_common<>>() == 0);
+    REQUIRE(magic_enum::detail::min_v<BadColor, as_common<>> == 0);
 
     REQUIRE(magic_enum::customize::enum_range<Color>::min == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::reflected_min_v<Color, false> == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::min_v<Color> == -12);
+    REQUIRE(magic_enum::detail::reflected_min<Color, as_common<>>() == MAGIC_ENUM_RANGE_MIN);
+    REQUIRE(magic_enum::detail::min_v<Color, as_common<>> == -12);
 
     REQUIRE(magic_enum::customize::enum_range<Numbers>::min == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::reflected_min_v<Numbers, false> == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::min_v<Numbers> == 1);
+    REQUIRE(magic_enum::detail::reflected_min<Numbers, as_common<>>() == MAGIC_ENUM_RANGE_MIN);
+    REQUIRE(magic_enum::detail::min_v<Numbers, as_common<>> == 1);
 
     REQUIRE(magic_enum::customize::enum_range<Directions>::min == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::reflected_min_v<Directions, false> == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::min_v<Directions> == -120);
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(magic_enum::customize::enum_range<Language>::min == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::reflected_min_v<Language, false> == MAGIC_ENUM_RANGE_MIN);
-    REQUIRE(magic_enum::detail::min_v<Language> == 10);
-#endif
+    REQUIRE(magic_enum::detail::reflected_min<Directions, as_common<>>() == MAGIC_ENUM_RANGE_MIN);
+    REQUIRE(magic_enum::detail::min_v<Directions, as_common<>> == -120);
 
     REQUIRE(magic_enum::customize::enum_range<number>::min == 100);
-    REQUIRE(magic_enum::detail::reflected_min_v<number, false> == 100);
-    REQUIRE(magic_enum::detail::min_v<number> == 100);
+    REQUIRE(magic_enum::detail::reflected_min<number, as_common<>>() == 100);
+    REQUIRE(magic_enum::detail::min_v<number, as_common<>> == 100);
 
-    REQUIRE(magic_enum::detail::reflected_min_v<Binary, false> == 0);
-    REQUIRE(magic_enum::detail::min_v<Binary> == false);
+    REQUIRE(magic_enum::detail::reflected_min<Binary, as_common<>>() == 0);
+    REQUIRE(magic_enum::detail::min_v<Binary, as_common<>> == false);
 
-    REQUIRE(magic_enum::detail::reflected_min_v<MaxUsedAsInvalid,false> == 0);
-    REQUIRE(magic_enum::detail::min_v<MaxUsedAsInvalid> == 0);
+    REQUIRE(magic_enum::detail::reflected_min<MaxUsedAsInvalid, as_common<>>() == 0);
+    REQUIRE(magic_enum::detail::min_v<MaxUsedAsInvalid, as_common<>> == 0);
   }
 
   SECTION("max") {
     REQUIRE(magic_enum::customize::enum_range<BadColor>::max == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::reflected_max_v<BadColor, false> == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::max_v<BadColor> == 2);
+    REQUIRE(magic_enum::detail::reflected_max<BadColor, as_common<>>() == MAGIC_ENUM_RANGE_MAX);
+    REQUIRE(magic_enum::detail::max_v<BadColor, as_common<>> == 2);
 
     REQUIRE(magic_enum::customize::enum_range<Color>::max == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::reflected_max_v<Color, false> == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::max_v<Color> == 15);
+    REQUIRE(magic_enum::detail::reflected_max<Color, as_common<>>() == MAGIC_ENUM_RANGE_MAX);
+    REQUIRE(magic_enum::detail::max_v<Color, as_common<>> == 15);
 
     REQUIRE(magic_enum::customize::enum_range<Numbers>::max == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::reflected_max_v<Numbers, false> == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::max_v<Numbers> == 3);
+    REQUIRE(magic_enum::detail::reflected_max<Numbers, as_common<>>() == MAGIC_ENUM_RANGE_MAX);
+    REQUIRE(magic_enum::detail::max_v<Numbers, as_common<>> == 3);
 
     REQUIRE(magic_enum::customize::enum_range<Directions>::max == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::reflected_max_v<Directions, false> == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::max_v<Directions> == 120);
-
-#if defined(MAGIC_ENUM_ENABLE_NONASCII)
-    REQUIRE(magic_enum::customize::enum_range<Language>::max == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::reflected_max_v<Language, false> == MAGIC_ENUM_RANGE_MAX);
-    REQUIRE(magic_enum::detail::max_v<Language> == 40);
-#endif
+    REQUIRE(magic_enum::detail::reflected_max<Directions, as_common<>>() == MAGIC_ENUM_RANGE_MAX);
+    REQUIRE(magic_enum::detail::max_v<Directions, as_common<>> == 120);
 
     REQUIRE(magic_enum::customize::enum_range<number>::max == 300);
-    REQUIRE(magic_enum::detail::reflected_max_v<number, false> == 300);
-    REQUIRE(magic_enum::detail::max_v<number> == 300);
+    REQUIRE(magic_enum::detail::reflected_max<number, as_common<>>() == 300);
+    REQUIRE(magic_enum::detail::max_v<number, as_common<>> == 300);
 
-    REQUIRE(magic_enum::detail::reflected_max_v<Binary, false> == 1);
-    REQUIRE(magic_enum::detail::max_v<Binary> == true);
+    REQUIRE(magic_enum::detail::reflected_max<Binary, as_common<>>() == 1);
+    REQUIRE(magic_enum::detail::max_v<Binary, as_common<>> == true);
 
-    REQUIRE(magic_enum::detail::reflected_max_v<MaxUsedAsInvalid, false> == 64);
-    REQUIRE(magic_enum::detail::max_v<MaxUsedAsInvalid> == 63);
+    REQUIRE(magic_enum::detail::reflected_max<MaxUsedAsInvalid, as_common<>>() == 64);
+    REQUIRE(magic_enum::detail::max_v<MaxUsedAsInvalid, as_common<>> == 63);
   }
 }
 
@@ -1146,10 +1123,10 @@ TEST_CASE("constexpr_for") {
 #endif
 
 static int switch_case_2d(Color color, Directions direction) {
-  switch (magic_enum::enum_fuse(color, direction).value()) {
-    case magic_enum::enum_fuse(Color::RED, Directions::Up).value():
+  switch (enum_fuse(color, direction).value()) {
+    case enum_fuse(Color::RED, Directions::Up).value():
       return 1;
-    case magic_enum::enum_fuse(Color::BLUE, Directions::Down).value():
+    case enum_fuse(Color::BLUE, Directions::Down).value():
       return 2;
     default:
       return 0;
@@ -1159,10 +1136,10 @@ static int switch_case_2d(Color color, Directions direction) {
 enum class Index { zero = 0, one = 1, two = 2 };
 
 static int switch_case_3d(Color color, Directions direction, Index index) {
-  switch (magic_enum::enum_fuse(color, direction, index).value()) {
-    case magic_enum::enum_fuse(Color::RED, Directions::Up, Index::zero).value():
+  switch (enum_fuse(color, direction, index).value()) {
+    case enum_fuse(Color::RED, Directions::Up, Index::zero).value():
       return 1;
-    case magic_enum::enum_fuse(Color::BLUE, Directions::Up, Index::zero).value():
+    case enum_fuse(Color::BLUE, Directions::Up, Index::zero).value():
       return 2;
     default:
       return 0;
@@ -1193,7 +1170,68 @@ TEST_CASE("multdimensional-switch-case") {
 TEST_CASE("format-base") {
   REQUIRE(std::format("{}", Color::RED) == "red");
   REQUIRE(std::format("{}", Color{0}) == "0");
-  REQUIRE(std::format("Test-{:~^10}.", Color::RED) == "Test-~~~red~~~~.");
 }
 
 #endif
+
+TEST_CASE("enum_next_value") {
+  REQUIRE(enum_next_value(Color::RED) == Color::GREEN);
+  REQUIRE(enum_next_value(Color::RED, 2) == Color::BLUE);
+  REQUIRE(enum_next_value(Color::RED, 1) == Color::GREEN);
+  REQUIRE(enum_next_value(Color::RED, 0) == Color::RED);
+  REQUIRE(enum_next_value(Color::BLUE, -2) == Color::RED);
+  REQUIRE(enum_next_value(Color::BLUE, -1) == Color::GREEN);
+  REQUIRE_FALSE(enum_next_value(Color::BLUE).has_value());
+  REQUIRE_FALSE(enum_next_value(Color::RED, -1).has_value());
+  REQUIRE_FALSE(enum_next_value(Color::RED, 10).has_value());
+}
+
+TEST_CASE("enum_next_value_circular") {
+  REQUIRE(enum_next_value_circular(Color::RED) == Color::GREEN);
+  REQUIRE(enum_next_value_circular(Color::RED, 2) == Color::BLUE);
+  REQUIRE(enum_next_value_circular(Color::RED, 1) == Color::GREEN);
+  REQUIRE(enum_next_value_circular(Color::RED, 0) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::BLUE, -2) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::BLUE, -1) == Color::GREEN);
+  REQUIRE(enum_next_value_circular(Color::BLUE) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::BLUE, 4) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::BLUE, 3) == Color::BLUE);
+  REQUIRE(enum_next_value_circular(Color::BLUE, 2) == Color::GREEN);
+  REQUIRE(enum_next_value_circular(Color::BLUE, 1) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::BLUE, 0) == Color::BLUE);
+  REQUIRE(enum_next_value_circular(Color::RED, -1) == Color::BLUE);
+  REQUIRE(enum_next_value_circular(Color::RED, -2) == Color::GREEN);
+  REQUIRE(enum_next_value_circular(Color::RED, -3) == Color::RED);
+  REQUIRE(enum_next_value_circular(Color::RED, -4) == Color::BLUE);
+}
+
+TEST_CASE("enum_prev_value") {
+  REQUIRE(enum_prev_value(Color::BLUE) == Color::GREEN);
+  REQUIRE(enum_prev_value(Color::BLUE, 2) == Color::RED);
+  REQUIRE(enum_prev_value(Color::BLUE, 1) == Color::GREEN);
+  REQUIRE(enum_prev_value(Color::RED, -2) == Color::BLUE);
+  REQUIRE(enum_prev_value(Color::RED, -1) == Color::GREEN);
+  REQUIRE(enum_prev_value(Color::BLUE, 0) == Color::BLUE);
+  REQUIRE_FALSE(enum_prev_value(Color::RED).has_value());
+  REQUIRE_FALSE(enum_prev_value(Color::BLUE, -1).has_value());
+  REQUIRE_FALSE(enum_prev_value(Color::BLUE, 10).has_value());
+}
+
+TEST_CASE("enum_prev_value_circular") {
+  REQUIRE(enum_prev_value_circular(Color::RED) == Color::BLUE);
+  REQUIRE(enum_prev_value_circular(Color::RED, 2) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::RED, 1) == Color::BLUE);
+  REQUIRE(enum_prev_value_circular(Color::RED, 0) == Color::RED);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, -2) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, -1) == Color::RED);
+  REQUIRE(enum_prev_value_circular(Color::BLUE) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, 4) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, 3) == Color::BLUE);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, 2) == Color::RED);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, 1) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::BLUE, 0) == Color::BLUE);
+  REQUIRE(enum_prev_value_circular(Color::RED, -1) == Color::GREEN);
+  REQUIRE(enum_prev_value_circular(Color::RED, -2) == Color::BLUE);
+  REQUIRE(enum_prev_value_circular(Color::RED, -3) == Color::RED);
+  REQUIRE(enum_prev_value_circular(Color::RED, -4) == Color::GREEN);
+}
