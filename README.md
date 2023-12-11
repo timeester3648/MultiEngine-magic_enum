@@ -17,8 +17,8 @@
 [![Build2 package](https://img.shields.io/badge/Build2-package-blueviolet)](https://www.cppget.org/magic_enum?q=magic_enum)
 [![Meson wrap](https://img.shields.io/badge/Meson-wrap-blueviolet)](https://github.com/mesonbuild/wrapdb/blob/master/subprojects/magic_enum.wrap)
 [![License](https://img.shields.io/github/license/Neargye/magic_enum.svg)](LICENSE)
-[![Try online](https://img.shields.io/badge/try-online-blue.svg)](https://wandbox.org/permlink/JPMZqT9mgaUdooyC)
-[![Compiler explorer](https://img.shields.io/badge/compiler_explorer-online-blue.svg)](https://godbolt.org/z/BxfmsH)
+[![Compiler explorer](https://img.shields.io/badge/compiler_explorer-online-blue.svg)](https://godbolt.org/z/feqcPa5G6)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Neargye/magic_enum/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Neargye/magic_enum)
 
 # Magic Enum C++
 
@@ -256,7 +256,7 @@ Header-only C++17 library provides static reflection for enums, work with any en
   color_rgb_array[Color::RED] = {255, 0, 0};
   color_rgb_array[Color::GREEN] = {0, 255, 0};
   color_rgb_array[Color::BLUE] = {0, 0, 255};
-  std::get<Color::BLUE>(color_rgb_array) // -> RGB{0, 0, 255}
+  magic_enum::containers::get<Color::BLUE>(color_rgb_array) // -> RGB{0, 0, 255}
   ```
 
 * `containers::bitset` bitset container for enums.
