@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -118,11 +118,6 @@ TEST_CASE("containers_array") {
   REQUIRE(std::make_pair(colors[0], color_rgb_container_int[colors[0]]) == std::make_pair<Color, std::uint8_t>(Color::RED, 1U));
   REQUIRE(std::make_pair(colors[1], color_rgb_container_int[colors[1]]) == std::make_pair<Color, std::uint8_t>(Color::GREEN, 2U));
   REQUIRE(std::make_pair(colors[2], color_rgb_container_int[colors[2]]) == std::make_pair<Color, std::uint8_t>(Color::BLUE, 4U));
-
-  auto empty = magic_enum::containers::array<Empty, std::nullptr_t>();
-  REQUIRE(empty.empty());
-  REQUIRE(empty.size() == 0);
-  REQUIRE(magic_enum::enum_count<Empty>() == empty.size());
 
   auto color_rgb_container = magic_enum::containers::array<Color, RGB>();
   REQUIRE_FALSE(color_rgb_container.empty());

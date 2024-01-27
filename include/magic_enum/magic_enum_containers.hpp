@@ -9,7 +9,7 @@
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -331,7 +331,7 @@ template <typename E, typename V, typename Index = default_indexing<E>>
 struct array {
   static_assert(std::is_enum_v<E>);
   static_assert(std::is_trivially_constructible_v<Index>);
-  static_assert(enum_count<E>() == 0 || Index::at(enum_values<E>().front())); // check Index is constexpr
+  static_assert(enum_count<E>() > 0 && Index::at(enum_values<E>().front()));
 
   using index_type = Index;
   using container_type = std::array<V, enum_count<E>()>;
@@ -481,7 +481,7 @@ template <typename E, typename Index = default_indexing<E>>
 class bitset {
   static_assert(std::is_enum_v<E>);
   static_assert(std::is_trivially_constructible_v<Index>);
-  static_assert(enum_count<E>() == 0 || Index::at(enum_values<E>().front())); // check Index is constexpr
+  static_assert(enum_count<E>() > 0 && Index::at(enum_values<E>().front()));
 
   using base_type = std::conditional_t<enum_count<E>() <= 8,  std::uint_least8_t,
                     std::conditional_t<enum_count<E>() <= 16, std::uint_least16_t,
