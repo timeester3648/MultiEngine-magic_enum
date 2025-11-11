@@ -26,10 +26,10 @@
 #define MAGIC_ENUM_NO_CHECK_REFLECTED_ENUM
 #define MAGIC_ENUM_RANGE_MIN -120
 #define MAGIC_ENUM_RANGE_MAX 120
-#include <magic_enum.hpp>
-#include <magic_enum_fuse.hpp>
-#include <magic_enum_iostream.hpp>
-#include <magic_enum_utility.hpp>
+#include <magic_enum/magic_enum.hpp>
+#include <magic_enum/magic_enum_fuse.hpp>
+#include <magic_enum/magic_enum_iostream.hpp>
+#include <magic_enum/magic_enum_utility.hpp>
 
 #include <array>
 #include <cctype>
@@ -99,6 +99,43 @@ struct magic_enum::customize::enum_range<Binary> {
   static constexpr int max = 64;
 };
 
+namespace We::Need::To::Go::Deeper {
+    enum class Dimension : short { Overworld = 1000, Nether, TheEnd = Overworld + 128 };
+    enum class Flaggy : std::uint64_t { Flag0 = 1 << 0, Flag32 = std::uint64_t(1) << 32 };
+
+    auto magic_enum_define_range_adl(Dimension)
+    {
+      return magic_enum::customize::adl_info().minmax<1000,1000+128>();
+    }
+
+    // not defined!
+    auto magic_enum_define_range_adl(Flaggy)
+    {
+      return magic_enum::customize::adl_info().flag<true>();
+    }
+}
+using We::Need::To::Go::Deeper::Dimension;
+using We::Need::To::Go::Deeper::Flaggy;
+
+enum CStyleEnum {
+    CStyleEnum_A = -36,
+    CStyleEnum_B,
+    CStyleEnum_C,
+    CStyleEnum_D,
+    CStyleEnum_F,
+    CStyleEnum_G,
+    CStyleEnum_H = 36
+};
+
+template <>
+struct magic_enum::customize::enum_range<CStyleEnum> {
+    static constexpr auto prefix_length = sizeof("CStyleEnum_") - 1;
+    static constexpr int min = -100;
+    static constexpr int max = 100;
+};
+
+
+
 enum class BoolTest : bool { Yay, Nay };
 
 using namespace magic_enum;
@@ -112,6 +149,19 @@ TEST_CASE("enum_cast") {
     REQUIRE(enum_cast<Color&>("GREEN").value() == Color::GREEN);
     REQUIRE(enum_cast<Color>("blue", [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }).value() == Color::BLUE);
     REQUIRE_FALSE(enum_cast<Color>("None").has_value());
+
+    constexpr auto dim = enum_cast<Dimension>("Nether");
+    REQUIRE(dim.value() == Dimension::Nether);
+    REQUIRE(enum_cast<Dimension&>("Nether").value() == Dimension::Nether);
+    REQUIRE(enum_cast<Dimension>("theend", [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }).value() == Dimension::TheEnd);
+    REQUIRE_FALSE(enum_cast<Dimension>("Aether").has_value());
+
+    constexpr auto cstyle = enum_cast<CStyleEnum>("A");
+    REQUIRE(cstyle.value() == CStyleEnum_A);
+    REQUIRE(enum_cast<const CStyleEnum&>("H").value() == CStyleEnum_H);
+    REQUIRE_FALSE(enum_cast<CStyleEnum>("CStyleEnum_H").has_value());
+    REQUIRE(enum_cast<CStyleEnum>("d", [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }) == CStyleEnum_D);
+    REQUIRE_FALSE(enum_cast<CStyleEnum>("Q").has_value());
 
     constexpr auto no = enum_cast<Numbers>("one");
     REQUIRE(no.value() == Numbers::one);
@@ -427,6 +477,13 @@ TEST_CASE("enum_values") {
 
   constexpr auto& s6 = enum_values<MaxUsedAsInvalid>();
   REQUIRE(s6 == std::array<MaxUsedAsInvalid, 2>{{MaxUsedAsInvalid::ONE, MaxUsedAsInvalid::TWO}});
+
+  constexpr auto& s7 = enum_values<Dimension>();
+  REQUIRE(s7 == std::array<Dimension, 3>{{Dimension::Overworld, Dimension::Nether, Dimension::TheEnd}});
+
+  constexpr auto& s8 = enum_values<Flaggy>();
+  REQUIRE(s8 == std::array<Flaggy, 2>{{Flaggy::Flag0, Flaggy::Flag32}});
+
 }
 
 TEST_CASE("enum_count") {
@@ -932,6 +989,10 @@ TEST_CASE("extrema") {
     REQUIRE(magic_enum::detail::reflected_min<BadColor, as_common<>>() == 0);
     REQUIRE(magic_enum::detail::min_v<BadColor, as_common<>> == 0);
 
+    REQUIRE(magic_enum::customize::enum_range<Dimension>::min == 1000);
+    REQUIRE(magic_enum::customize::enum_range<Dimension>::max == 1000 + 128);
+    REQUIRE_FALSE(magic_enum::customize::enum_range<Dimension>::is_flags);
+
     REQUIRE(magic_enum::customize::enum_range<Color>::min == MAGIC_ENUM_RANGE_MIN);
     REQUIRE(magic_enum::detail::reflected_min<Color, as_common<>>() == MAGIC_ENUM_RANGE_MIN);
     REQUIRE(magic_enum::detail::min_v<Color, as_common<>> == -12);
@@ -1176,7 +1237,8 @@ TEST_CASE("multdimensional-switch-case") {
 
 #if defined(__cpp_lib_format)
 
-#include <magic_enum_format.hpp>
+#include <format>
+#include <magic_enum/magic_enum_format.hpp>
 
 TEST_CASE("format-base") {
   REQUIRE(std::format("{}", Color::RED) == "red");

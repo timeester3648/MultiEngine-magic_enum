@@ -8,6 +8,7 @@
 * [`enum_name` returns name from enum value.](#enum_name)
 * [`enum_names` obtains string enum name sequence.](#enum_names)
 * [`enum_entries` obtains pair (value enum, string enum name) sequence.](#enum_entries)
+* [`customize::enum_range`](#customizeenum_range)
 * [`enum_index` obtains index in enum value sequence from enum value.](#enum_index)
 * [`enum_contains` checks whether enum contains enumerator with such value.](#enum_contains)
 * [`enum_reflected` returns true if the enum value is in the range of values that can be reflected..](#enum_reflected)
@@ -43,7 +44,7 @@
   #define MAGIC_ENUM_USING_ALIAS_STRING using string = my_lib::String;
   #define MAGIC_ENUM_USING_ALIAS_STRING_VIEW using string_view = my_lib::StringView;
   #define MAGIC_ENUM_USING_ALIAS_OPTIONAL template <typename T> using optional = my_lib::Optional<T>;
-  #include <magic_enum.hpp>
+  #include <magic_enum/magic_enum.hpp>
   ```
 
 * Optionally define `MAGIC_ENUM_CONFIG_FILE` i.e., in your build system, with path to header file with defined
@@ -63,6 +64,7 @@
   #define MAGIC_ENUM_RANGE_MAX 255
   ```
 
+
 ## `enum_cast`
 
 ```cpp
@@ -75,6 +77,8 @@ constexpr optional<E> enum_cast(string_view value) noexcept;
 template <typename E, typename BinaryPredicate>
 constexpr optional<E> enum_cast(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Obtains enum value from string or integer.
 
@@ -125,6 +129,8 @@ template <typename E, size_t I>
 constexpr E enum_value() noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns enum value at specified index.
   * `enum_value(value)` no bounds checking is performed: the behavior is undefined if `index >= number of enum values`.
   * `enum_value<value>()` check if `I >= number of enum values`, occurs the compilation error `magic_enum::enum_value out of range`.
@@ -149,6 +155,8 @@ template <typename E>
 constexpr array<E, N> enum_values() noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns `array<E, N>` with all enum values where `N = number of enum values`, sorted by enum value.
 
 * Examples
@@ -165,6 +173,8 @@ constexpr array<E, N> enum_values() noexcept;
 template <typename E>
 constexpr size_t enum_count() noexcept;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Returns number of enum values.
 
@@ -185,6 +195,8 @@ template <typename E>
 constexpr underlying_type_t<E> enum_underlying(E value) noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns integer value from enum value.
 
 * Examples
@@ -204,6 +216,8 @@ constexpr string_view enum_name(E value) noexcept;
 template <auto V>
 constexpr string_view enum_name() noexcept;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Returns name from enum value as `string_view` with null-terminated string.
   * If enum value does not have name or [out of range](limitations.md), `enum_name(value)` returns empty string.
@@ -232,6 +246,8 @@ template <typename E>
 constexpr array<string_view, N> enum_names() noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns `array<string_view, N>` with all names where `N = number of enum values`, sorted by enum value.
 
 * Examples
@@ -249,6 +265,8 @@ template <typename E>
 constexpr array<pair<E, string_view>, N> enum_entries() noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns `array<pair<E, string_view>, N>` with all pairs (value, name) where `N = number of enum values`, sorted by enum value.
 
 * Examples
@@ -260,6 +278,62 @@ constexpr array<pair<E, string_view>, N> enum_entries() noexcept;
   // color_entries[0].second -> "RED"
   ```
 
+## `customize::enum_range`
+
+```cpp
+namespace customize {
+template <typename E,typename = void>
+struct enum_range {
+  constexpr static std::size_t prefix_length = 0;
+  constexpr static bool is_flags = false;
+  constexpr static int min = MAGIC_ENUM_MIN_RANGE;
+  constexpr static int max = MAGIC_ENUM_MAX_RANGE;
+};
+}
+
+```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
+* A customization point for controlling `magic_enum` defaults
+
+* It has a defaulted second `void` typename template parameter for SFINAE.
+
+* `is_flags` tells `magic_enum` whether this enum should be considered to be a bitflag enum. It is not required to be defined if not defined it will be assumed to be `false`
+
+* `prefix_length` tells `magic_enum` how many characters to remove from the start of the names for all string functions. It is not required to be defined if not defined it will be assumed to be `0`
+
+* `min` and `max` are not required to be defined if `is_flags` is defined because they are ignored for enum flags.
+  otherwise they are required.
+
+* Examples
+
+  * Controlling prefix length
+
+    ```cpp
+    enum CStyleAnimals {
+      CStyleAnimals_Giraffe,
+      CStyleAnimals_Elephant,
+      CStyleAnimals_Lion,
+    };
+
+    template<>
+    struct magic_enum::customize::enum_range<CStyleAnimals> {
+        // sizeof counts null terminator subtract 1 to get length
+        constexpr static auto prefix_length = sizeof("CStyleAnimals_")-1;
+        constexpr static int min = CStyleAnimals_Giraffe; // required
+        constexpr static int max = CStyleAnimals_Lion;    // required
+    };
+  
+    CStyleAnimals animal = CStyleAnimals_Giraffe;
+    auto animal_name = magic_enum::enum_name(animal);
+    // animal_name => "Giraffe"
+    auto animal_from_string = magic_enum::enum_cast<CStyleAnimals>(animal_name);
+    // animal_from_string.value() == CStyleAnimals_Giraffe 
+    ```
+
+
+
 ## `enum_index`
 
 ```cpp
@@ -269,6 +343,8 @@ constexpr optional<size_t> enum_index(E value) noexcept;
 template <auto V>
 constexpr size_t enum_index() noexcept;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Obtains index in enum values from enum value.
   * `enum_index(value)` returns `optional<size_t>` with index.
@@ -303,6 +379,8 @@ template <typename E, typename BinaryPredicate>
 constexpr bool enum_contains(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Checks whether enum contains enumerator with such value.
 
 * Returns true is enum contains value, otherwise false.
@@ -327,6 +405,8 @@ template <typename E>
 constexpr bool enum_reflected(underlying_type_t<E> value) noexcept;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Returns true if the enum value is in the range of values that can be reflected.
 
 ## `enum_type_name`
@@ -335,6 +415,8 @@ constexpr bool enum_reflected(underlying_type_t<E> value) noexcept;
 template <typename E>
 constexpr string_view enum_type_name() noexcept;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Returns type name of enum as `string_view` null-terminated string.
 
@@ -353,7 +435,7 @@ template <typename... Es>
 constexpr optional<enum_fuse_t> enum_fuse(Es... values) noexcept;
 ```
 
-* You should add the required file `<magic_enum_fuse.hpp>`.
+* Defined in header `<magic_enum/magic_enum_fuse.hpp>`
 
 * Returns a typesafe bijective mix of several enum values. This can be used to emulate 2D switch/case statements.
 
@@ -384,7 +466,7 @@ template <typename Result, typename E, typename Lambda>
 constexpr Result enum_switch(Lambda&& lambda, E value, Result&& result);
 ```
 
-* You should add the required file `<magic_enum_switch.hpp>`.
+* Defined in header `<magic_enum/magic_enum_switch.hpp>`
 
 * Examples
 
@@ -403,6 +485,8 @@ constexpr Result enum_switch(Lambda&& lambda, E value, Result&& result);
 template <typename E, typename Lambda>
 constexpr auto enum_for_each(Lambda&& lambda);
 ```
+
+* Defined in header `<magic_enum/magic_enum_utility.hpp>`
 
 * Examples
 
@@ -442,7 +526,7 @@ template <typename E, typename BinaryPredicate>
 constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
 ```
 
-* You should add the required file `<magic_enum_flags.hpp>`.
+* Defined in header `<magic_enum/magic_enum_flags.hpp>`
 
 * For enum-flags add `is_flags` to specialization `enum_range` for necessary enum type. Specialization of `enum_range` must be injected in `namespace magic_enum::customize`.
   ```cpp
@@ -486,6 +570,25 @@ constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcep
   magic_enum::enum_flags_test_any(Left|Down|Right, Down|Right); // -> "true"
   ```
 
+* Or, for enum types that are deeply nested in classes and/or namespaces, declare a function called `magic_enum_define_range_adl(my_enum_type)` in the same namespace as `my_enum_type`, which magic_enum will find by ADL (because the function is in the same class/namespace as `my_enum_type`), and whose return type is a `magic_enum::customize::adl_info`.
+
+```cpp
+namespace Deeply::Nested::Namespace {
+  enum class my_enum_type { my_enum_value1,my_enum_value2 };
+
+  // - magic_enum will find this function by ADL
+  // - uses builder pattern
+  // - use auto to not have to name the type yourself
+  auto magic_enum_define_range_adl(my_enum_type)
+  {
+    return magic_enum::customize::adl_info()
+    .minmax<10,10>() // the min max search range
+    .flag<true>() // whether it is a flag enum
+    .prefix<sizeof("my_enum_")-1>(); // how many characters to trim from the start of each enum entry.
+  }
+}
+```
+
 ## `is_unscoped_enum`
 
 ```cpp
@@ -495,6 +598,8 @@ struct is_unscoped_enum;
 template <typename T>
 inline constexpr bool is_unscoped_enum_v = is_unscoped_enum<T>::value;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Checks whether type is an [Unscoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Unscoped_enumeration).
 
@@ -521,6 +626,8 @@ template <typename T>
 inline constexpr bool is_scoped_enum_v = is_scoped_enum<T>::value;
 ```
 
+* Defined in header `<magic_enum/magic_enum.hpp>`
+
 * Checks whether type is an [Scoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Scoped_enumerations).
 
 * Provides the member constant value which is equal to true, if T is an [Scoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Scoped_enumerations) type.</br>
@@ -545,6 +652,8 @@ struct underlying_type;
 template <typename T>
 using underlying_type_t = typename underlying_type<T>::type;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Improved UB-free "SFINAE-friendly" [underlying_type](https://en.cppreference.com/w/cpp/types/underlying_type).
 
@@ -571,7 +680,7 @@ template <typename Char, typename Traits, typename E>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, optional<E> value);
 ```
 
-* You should add the required file `<magic_enum_iostream.hpp>`.
+* Defined in header `<magic_enum/magic_enum_iostream.hpp>`
 
 * Out-of-the-box ostream operators for all enums.
 
@@ -590,7 +699,7 @@ template <typename Char, typename Traits, typename E>
 basic_istream<Char, Traits>& operator>>(basic_istream<Char, Traits>& is, E& value);
 ```
 
-* You should add the required file `<magic_enum_iostream.hpp>`.
+* Defined in header `<magic_enum/magic_enum_iostream.hpp>`
 
 * Out-of-the-box istream operators for all enums.
 
@@ -626,6 +735,8 @@ constexpr E& operator&=(E& lhs, E rhs) noexcept;
 template <typename E>
 constexpr E& operator^=(E& lhs, E rhs) noexcept;
 ```
+
+* Defined in header `<magic_enum/magic_enum.hpp>`
 
 * Out-of-the-box bitwise operators for all enums.
 
@@ -711,6 +822,8 @@ struct array {
   friend constexpr bool operator>=(const array& a1, const array& a2);
 }
 ```
+
+* Defined in header `<magic_enum/magic_enum_containers.hpp>`
 
 * STL like array for all enums.
 
@@ -823,6 +936,8 @@ class bitset {
   friend std::istream& operator>>(std::istream& i, bitset& bs);
 }
 ```
+
+* Defined in header `<magic_enum/magic_enum_containers.hpp>`
 
 * STL like bitset for all enums.
 
@@ -974,6 +1089,8 @@ class set {
   size_type erase_if(Pred pred);
 }
 ```
+
+* Defined in header `<magic_enum/magic_enum_containers.hpp>`
 
 * STL like set for all enums.
 

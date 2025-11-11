@@ -32,11 +32,11 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#include <magic_enum.hpp>
-#include <magic_enum_flags.hpp>
-#include <magic_enum_fuse.hpp>
-#include <magic_enum_iostream.hpp>
-#include <magic_enum_utility.hpp>
+#include <magic_enum/magic_enum.hpp>
+#include <magic_enum/magic_enum_flags.hpp>
+#include <magic_enum/magic_enum_fuse.hpp>
+#include <magic_enum/magic_enum_iostream.hpp>
+#include <magic_enum/magic_enum_utility.hpp>
 
 #include <array>
 #include <cctype>
@@ -49,17 +49,20 @@ struct magic_enum::customize::enum_range<Color> {
   static constexpr bool is_flags = true;
 };
 
-enum class Numbers : int {
-  none = 0,
-  one = 1 << 1,
-  two = 1 << 2,
-  three = 1 << 3,
-  many = 1 << 30,
-};
-template <>
-struct magic_enum::customize::enum_range<Numbers> {
-  static constexpr bool is_flags = true;
-};
+namespace Namespace {
+    enum class Numbers : int {
+        none = 0,
+        one = 1 << 1,
+        two = 1 << 2,
+        three = 1 << 3,
+        many = 1 << 30,
+    };
+    auto magic_enum_define_range_adl(Numbers)
+    {
+      return magic_enum::customize::adl_info().flag<true>();
+    }
+}
+using Namespace::Numbers;
 
 enum Directions : std::uint64_t {
   NoDirection = 0,
@@ -91,8 +94,26 @@ struct magic_enum::customize::enum_range<number> {
   static constexpr bool is_flags = true;
 };
 
-#include <magic_enum.hpp>
-#include <magic_enum_fuse.hpp>
+enum CStyleFlags {
+    CStyleFlags_A = 1 << 0,
+    CStyleFlags_B = 1 << 1,
+    CStyleFlags_C = 1 << 2,
+    CStyleFlags_D = 1 << 3,
+    CStyleFlags_E = 1 << 4,
+    CStyleFlags_F = 1 << 5,
+    CStyleFlags_G = 1 << 6,
+    CStyleFlags_H = 1 << 7,
+    CStyleFlags_I = 1 << 8,
+};
+
+template <>
+struct magic_enum::customize::enum_range<CStyleFlags> {
+    static constexpr bool is_flags = true;
+    static constexpr auto prefix_length = sizeof("CStyleFlags_")-1;
+};
+
+#include <magic_enum/magic_enum.hpp>
+#include <magic_enum/magic_enum_fuse.hpp>
 
 using namespace magic_enum;
 using namespace magic_enum::bitwise_operators;
@@ -116,6 +137,13 @@ TEST_CASE("enum_cast") {
     REQUIRE(enum_flags_cast<Color&>("GREEN|RED|RED").value() == (Color::GREEN | Color::RED));
     REQUIRE_FALSE(enum_flags_cast<Color&>("GREEN|RED|None").has_value());
     REQUIRE_FALSE(enum_flags_cast<Color>("None").has_value());
+
+    REQUIRE(enum_flags_cast<CStyleFlags>("A|B|C|D").value() == (CStyleFlags_A | CStyleFlags_B | CStyleFlags_C | CStyleFlags_D));
+    REQUIRE(enum_flags_cast<CStyleFlags>("a|e|f", [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }).value() == (CStyleFlags_A | CStyleFlags_E | CStyleFlags_F));
+    REQUIRE_FALSE(enum_flags_cast<CStyleFlags>("blue|E|F|C", [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }).has_value());
+    REQUIRE(enum_flags_cast<CStyleFlags>("H|I|F|F|F").value() == (CStyleFlags_H | CStyleFlags_I | CStyleFlags_F));
+    REQUIRE(enum_flags_cast<CStyleFlags>("E|B|C|A").value() == (CStyleFlags_A | CStyleFlags_B | CStyleFlags_C | CStyleFlags_E));
+
 
     constexpr auto no = enum_cast<Numbers>("one");
     REQUIRE(no.value() == Numbers::one);
@@ -504,6 +532,8 @@ TEST_CASE("enum_flags_name") {
   REQUIRE(enum_flags_name(number::four) == "four");
   REQUIRE(nto_name == "one|three");
   REQUIRE(enum_flags_name(static_cast<number>(0)).empty());
+
+  REQUIRE(enum_flags_name(CStyleFlags_A | CStyleFlags_B | CStyleFlags_C | CStyleFlags_D) == "A|B|C|D");
 }
 
 TEST_CASE("enum_names") {
@@ -720,7 +750,7 @@ TEST_CASE("constexpr_for") {
 
 #if defined(__cpp_lib_format)
 
-#include <magic_enum_format.hpp>
+#include <magic_enum/magic_enum_format.hpp>
 
 TEST_CASE("format-base") {
   REQUIRE(std::format("Test-{:~^11}.", Color::RED | Color::GREEN) == "Test-~RED|GREEN~.");

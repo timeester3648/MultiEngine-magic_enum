@@ -23,6 +23,26 @@
 
 * If an enum is declared as a flag enum, its zero value will not be reflected.
 
+* Or, for enum types that are deeply nested in classes and/or namespaces, declare a function called `magic_enum_define_range_adl(my_enum_type)` in the same namespace as `my_enum_type`, which magic_enum will find by ADL (because the function is in the same class/namespace as `my_enum_type`), and whose return type is a `magic_enum::customize::adl_info`.
+
+  ```cpp
+  namespace Deeply::Nested::Namespace {
+  enum class my_enum_type { my_enum_value1,my_enum_value2 };
+
+  // - magic_enum will find this function by ADL
+  // - uses builder pattern
+  // - use auto to not have to name the type yourself
+  auto magic_enum_define_range_adl(my_enum_type)
+  {
+    return magic_enum::customize::adl_info()
+    .minmax<10,10>() // the min max search range
+    .flag<true>() // whether it is a flag enum
+    .prefix<sizeof("my_enum_")-1>(); // how many characters to trim from the start of each enum entry.
+  }
+
+  }
+  ```
+
 ## Enum Range
 
 * Enum values must be in the range `[MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX]`.
@@ -34,13 +54,13 @@
     ```cpp
     #define MAGIC_ENUM_RANGE_MIN 0
     #define MAGIC_ENUM_RANGE_MAX 256
-    #include <magic_enum.hpp>
+    #include <magic_enum/magic_enum.hpp>
     ```
 
 * If you need a different range for a specific enum type, add the specialization `enum_range` for the enum type. Specializations of `enum_range` must be injected in `namespace magic_enum::customize`.
 
   ```cpp
-  #include <magic_enum.hpp>
+  #include <magic_enum/magic_enum.hpp>
 
   enum class number { one = 100, two = 200, three = 300 };
 

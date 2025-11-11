@@ -22,6 +22,21 @@ If you like this project, please consider donating to one of the funds that help
 
 ## [Features & Examples](example/)
 
+* Basic
+
+  ```cpp
+  #include <magic_enum/magic_enum.hpp>
+  #include <iostream>
+
+  enum class Color { RED = -10, BLUE = 0, GREEN = 10 };
+
+  int main() {
+    Color c1 = Color::RED;
+    std::cout << magic_enum::enum_name(c1) << std::endl; // RED
+    return 0;
+  }
+  ```
+
 * Enum value to string
 
   ```cpp
@@ -291,7 +306,7 @@ If you like this project, please consider donating to one of the funds that help
 
 ## Integration
 
-* You should add the required file [magic_enum.hpp](include/magic_enum.hpp), and optionally other headers from [include dir](include/) or [release archive](https://github.com/Neargye/magic_enum/releases/latest). Alternatively, you can build the library with CMake.
+* You should add the required file [magic_enum.hpp](include/magic_enum/magic_enum.hpp), and optionally other headers from [include dir](include/) or [release archive](https://github.com/Neargye/magic_enum/releases/latest). Alternatively, you can build the library with CMake.
 
 * If you are using [vcpkg](https://github.com/Microsoft/vcpkg/) on your project for external dependencies, then you can use the [magic-enum package](https://github.com/microsoft/vcpkg/tree/master/ports/magic-enum).
 
@@ -305,7 +320,7 @@ If you like this project, please consider donating to one of the funds that help
   CPMAddPackage(
       NAME magic_enum
       GITHUB_REPOSITORY Neargye/magic_enum
-      GIT_TAG x.y.z # Where `x.y.z` is the release version you want to use.
+      GIT_TAG vx.y.z # Where `x.y.z` is the release version you want to use.
   )
   ```
 
