@@ -179,7 +179,7 @@ namespace customize {
 }
 
 namespace detail {
-  template<typename E,typename = void>
+  template<typename E, typename = void>
   constexpr inline std::size_t prefix_length_or_zero = 0;
 
   template<typename E>
@@ -192,17 +192,17 @@ template <bool IsFlags = false, int Min = MAGIC_ENUM_RANGE_MIN, int Max = MAGIC_
 struct adl_info_holder {
   constexpr static int max = Max;
   constexpr static int min = Min;
-  constexpr static bool is_flags =IsFlags;
+  constexpr static bool is_flags = IsFlags;
   constexpr static std::size_t prefix_length = PrefixLength;
 
-  template<int min,int max>
-  constexpr static adl_info_holder<IsFlags,min,max,PrefixLength> minmax() { return {}; }
+  template<int min, int max>
+  constexpr static adl_info_holder<IsFlags, min, max, PrefixLength> minmax() { return {}; }
 
   template<bool is_flag>
-  constexpr static adl_info_holder<is_flag,Min,Max,PrefixLength> flag() { return {}; }
+  constexpr static adl_info_holder<is_flag, Min, Max, PrefixLength> flag() { return {}; }
 
   template<std::size_t prefix_len>
-  constexpr static adl_info_holder<IsFlags,Min,Max,prefix_len> prefix() { return {}; }
+  constexpr static adl_info_holder<IsFlags, Min, Max, prefix_len> prefix() { return {}; }
 };
 
 constexpr adl_info_holder<> adl_info() { return {}; }
@@ -210,7 +210,7 @@ constexpr adl_info_holder<> adl_info() { return {}; }
 // Enum value must be in range [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX]. By default MAGIC_ENUM_RANGE_MIN = -128, MAGIC_ENUM_RANGE_MAX = 127.
 // If need another range for all enum types by default, redefine the macro MAGIC_ENUM_RANGE_MIN and MAGIC_ENUM_RANGE_MAX.
 // If need another range for specific enum type, add specialization enum_range for necessary enum type.
-template <typename E,typename /*= void*/>
+template <typename E, typename>
 struct enum_range {
   static constexpr int min = MAGIC_ENUM_RANGE_MIN;
   static constexpr int max = MAGIC_ENUM_RANGE_MAX;
@@ -263,7 +263,7 @@ namespace detail {
 
 template <typename T>
 struct supported
-#if defined(MAGIC_ENUM_SUPPORTED) && MAGIC_ENUM_SUPPORTED || defined(MAGIC_ENUM_NO_CHECK_SUPPORT)
+#if defined(MAGIC_ENUM_SUPPORTED) || defined(MAGIC_ENUM_NO_CHECK_SUPPORT)
   : std::true_type {};
 #else
   : std::false_type {};
@@ -842,22 +842,7 @@ constexpr enum_subtype subtype(std::true_type) noexcept {
   } else if constexpr (has_is_flags<E>::value) {
     return customize::enum_range<E>::is_flags ? enum_subtype::flags : enum_subtype::common;
   } else {
-#if defined(MAGIC_ENUM_AUTO_IS_FLAGS)
-    constexpr auto flags_values = values<E, enum_subtype::flags>();
-    constexpr auto default_values = values<E, enum_subtype::common>();
-    if (flags_values.size() == 0 || default_values.size() > flags_values.size()) {
-      return enum_subtype::common;
-    }
-    for (std::size_t i = 0; i < default_values.size(); ++i) {
-      const auto v = static_cast<U>(default_values[i]);
-      if (v != 0 && (v & (v - 1)) != 0) {
-        return enum_subtype::common;
-      }
-    }
-    return enum_subtype::flags;
-#else
     return enum_subtype::common;
-#endif
   }
 }
 
@@ -1190,7 +1175,7 @@ inline constexpr bool is_magic_enum_supported = detail::supported<void>::value;
 template <typename T>
 using Enum = detail::enum_concept<T>;
 
-// Checks whether T is an Unscoped enumeration type.
+// Returns true if T is an Unscoped enumeration type.
 // Provides the member constant value which is equal to true, if T is an [Unscoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Unscoped_enumeration) type. Otherwise, value is equal to false.
 template <typename T>
 struct is_unscoped_enum : detail::is_unscoped_enum<T> {};
@@ -1198,7 +1183,7 @@ struct is_unscoped_enum : detail::is_unscoped_enum<T> {};
 template <typename T>
 inline constexpr bool is_unscoped_enum_v = is_unscoped_enum<T>::value;
 
-// Checks whether T is an Scoped enumeration type.
+// Returns true if T is a Scoped enumeration type.
 // Provides the member constant value which is equal to true, if T is an [Scoped enumeration](https://en.cppreference.com/w/cpp/language/enum#Scoped_enumerations) type. Otherwise, value is equal to false.
 template <typename T>
 struct is_scoped_enum : detail::is_scoped_enum<T> {};
@@ -1269,17 +1254,17 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 
 // Returns integer value from enum value.
 template <typename E>
-[[nodiscard]] constexpr auto enum_integer(E value) noexcept -> detail::enable_if_t<E, underlying_type_t<E>> {
+[[nodiscard]] constexpr auto enum_integer(E value) noexcept -> underlying_type_t<E> {
   return static_cast<underlying_type_t<E>>(value);
 }
 
 // Returns underlying value from enum value.
 template <typename E>
-[[nodiscard]] constexpr auto enum_underlying(E value) noexcept -> detail::enable_if_t<E, underlying_type_t<E>> {
+[[nodiscard]] constexpr auto enum_underlying(E value) noexcept -> underlying_type_t<E> {
   return static_cast<underlying_type_t<E>>(value);
 }
 
-// Obtains index in enum values from enum value.
+// Returns index in enum values from enum value.
 // Returns optional with index.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 [[nodiscard]] constexpr auto enum_index(E value) noexcept -> detail::enable_if_t<E, optional<std::size_t>> {
@@ -1310,7 +1295,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
   }
 }
 
-// Obtains index in enum values from enum value.
+// Returns index in enum values from enum value.
 // Returns optional with index.
 template <detail::enum_subtype S, typename E>
 [[nodiscard]] constexpr auto enum_index(E value) noexcept -> detail::enable_if_t<E, optional<std::size_t>> {
@@ -1320,7 +1305,7 @@ template <detail::enum_subtype S, typename E>
   return enum_index<D, S>(value);
 }
 
-// Obtains index in enum values from static storage enum variable.
+// Returns index in enum values from static storage enum variable.
 template <auto V, detail::enum_subtype S = detail::subtype_v<std::decay_t<decltype(V)>>>
 [[nodiscard]] constexpr auto enum_index() noexcept -> detail::enable_if_t<decltype(V), std::size_t> {\
   using D = std::decay_t<decltype(V)>;
@@ -1385,7 +1370,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 // Allows you to write magic_enum::enum_cast<foo>("bar", magic_enum::case_insensitive);
 inline constexpr auto case_insensitive = detail::case_insensitive<>{};
 
-// Obtains enum value from integer value.
+// Returns enum value from integer value.
 // Returns optional with enum value.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 [[nodiscard]] constexpr auto enum_cast(underlying_type_t<E> value) noexcept -> detail::enable_if_t<E, optional<std::decay_t<E>>> {
@@ -1414,7 +1399,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
   }
 }
 
-// Obtains enum value from name.
+// Returns enum value from name.
 // Returns optional with enum value.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>, typename BinaryPredicate = std::equal_to<>>
 [[nodiscard]] constexpr auto enum_cast(string_view value, [[maybe_unused]] BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, optional<std::decay_t<E>>, BinaryPredicate> {
@@ -1438,7 +1423,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>, typename Bi
   return {}; // Invalid value or out of range.
 }
 
-// Checks whether enum contains value with such value.
+// Returns true if enum contains value with such value.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 [[nodiscard]] constexpr auto enum_contains(E value) noexcept -> detail::enable_if_t<E, bool> {
   using D = std::decay_t<E>;
@@ -1447,7 +1432,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
   return static_cast<bool>(enum_cast<D, S>(static_cast<U>(value)));
 }
 
-// Checks whether enum contains value with such value.
+// Returns true if enum contains value with such value.
 template <detail::enum_subtype S, typename E>
 [[nodiscard]] constexpr auto enum_contains(E value) noexcept -> detail::enable_if_t<E, bool> {
   using D = std::decay_t<E>;
@@ -1456,7 +1441,7 @@ template <detail::enum_subtype S, typename E>
   return static_cast<bool>(enum_cast<D, S>(static_cast<U>(value)));
 }
 
-// Checks whether enum contains value with such integer value.
+// Returns true if enum contains value with such integer value.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
 [[nodiscard]] constexpr auto enum_contains(underlying_type_t<E> value) noexcept -> detail::enable_if_t<E, bool> {
   using D = std::decay_t<E>;
@@ -1464,7 +1449,7 @@ template <typename E, detail::enum_subtype S = detail::subtype_v<E>>
   return static_cast<bool>(enum_cast<D, S>(value));
 }
 
-// Checks whether enum contains enumerator with such name.
+// Returns true if enum contains enumerator with such name.
 template <typename E, detail::enum_subtype S = detail::subtype_v<E>, typename BinaryPredicate = std::equal_to<>>
 [[nodiscard]] constexpr auto enum_contains(string_view value, BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, bool, BinaryPredicate> {
   using D = std::decay_t<E>;
@@ -1505,8 +1490,8 @@ template <detail::enum_subtype S, typename E>
 template <bool AsFlags = true>
 inline constexpr auto as_flags = AsFlags ? detail::enum_subtype::flags : detail::enum_subtype::common;
 
-template <bool AsFlags = true>
-inline constexpr auto as_common = AsFlags ? detail::enum_subtype::common : detail::enum_subtype::flags;
+template <bool AsCommon = true>
+inline constexpr auto as_common = AsCommon ? detail::enum_subtype::common : detail::enum_subtype::flags;
 
 namespace bitwise_operators {
 
