@@ -271,12 +271,10 @@ If you like this project, please consider donating to one of the funds that help
 * `containers::bitset` bitset container for enums.
 
   ```cpp
-  constexpr magic_enum::containers::bitset<Color> color_bitset_red_green {Color::RED|Color::GREEN};
-  bool all = color_bitset_red_green.all();
-  // all -> false
-  // Color::BLUE is missing
-  bool test = color_bitset_red_green.test(Color::RED);
-  // test -> true
+  std::uint8_t incoming = 0b00000011;
+  auto color_bitset = magic_enum::containers::bitset<Color> {magic_enum::containers::raw_access, incoming};
+  color_bitset.set(Color::BLUE);
+  auto raw_value = color_bitset.to_ulong(magic_enum::containers::raw_access);
   ```
 
 * `containers::set` set container for enums.
@@ -352,6 +350,25 @@ If you like this project, please consider donating to one of the funds that help
   ...
   target_link_libraries(your_executable magic_enum::magic_enum)
   ```
+
+* **C++20 modules** are supported as an alternative to the header-only mode, requires CMake 3.28+.
+
+  Configure with CMake:
+  ```cmake
+  cmake -DMAGIC_ENUM_USE_MODULES=ON -G Ninja ...
+  ```
+
+  Then use `import` instead of `#include`:
+  ```cpp
+  import magic_enum;
+
+  enum class Color { RED, GREEN, BLUE };
+  auto name = magic_enum::enum_name(Color::RED); // "RED"
+  ```
+
+  Caveats:
+  - Do not mix `#include <magic_enum/...>` and `import magic_enum;` within the same link unit — ODR violation.
+  - `import std;` is opt-in: add `-DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_IMPORT_STD=ON` (requires CMake 3.30+).
 
 ## Compiler compatibility
 

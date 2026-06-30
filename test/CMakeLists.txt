@@ -58,7 +58,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   set(CMAKE_VERBOSE_MAKEFILE ON)
   set(OPTIONS -Wall -Wextra -Wshadow -pedantic-errors -Werror)
 
-  # Clang 22+ treats __COUNTER__ as C2y extension, but Catch2 v2 uses it
+  # Clang 22+ treats __COUNTER__ as C2y extension; but doctest uses it
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "22.0")
     set(OPTIONS ${OPTIONS} -Wno-c2y-extensions)
   endif()
@@ -74,12 +74,29 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endif()
 endif()
 
+if(MAGIC_ENUM_USE_MODULES AND NOT MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION)
+
+magic_enum_make_library(magic_enum_module_test-cpp${CMAKE_CXX_STANDARD}
+  "MAGIC_ENUM_CONFIG_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/magic_enum_test_config.hpp\""
+)
+magic_enum_make_library(magic_enum_module_test_aliases-cpp${CMAKE_CXX_STANDARD}
+  "MAGIC_ENUM_CONFIG_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/aliases.hpp\""
+)
+magic_enum_make_library(magic_enum_module_test_wchar_t-cpp${CMAKE_CXX_STANDARD}
+  "MAGIC_ENUM_CONFIG_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/magic_enum_wchar_t_test_config.hpp\""
+)
+
+endif()
+
 function(make_test src target std)
   add_executable(${target} ${src})
   target_compile_options(${target} PRIVATE ${OPTIONS})
-  target_include_directories(${target} PRIVATE 3rdparty/Catch2/include)
+  target_compile_definitions(${target} PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
+  target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
   if(${MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG})
     target_include_directories(${target} PRIVATE ${magic_enum_INCLUDE_DIRS})
+  elseif(TARGET magic_enum_module_${target})
+    target_link_libraries(${target} PRIVATE magic_enum_module_${target})
   else()
     target_link_libraries(${target} PRIVATE magic_enum::magic_enum)
   endif()
@@ -94,6 +111,8 @@ function(make_test src target std)
   add_test(NAME ${target} COMMAND ${target})
 endfunction()
 
+if(NOT MAGIC_ENUM_USE_MODULES)
+
 make_test(test.cpp test-cpp17 c++17)
 make_test(test_flags.cpp test_flags-cpp17 c++17)
 make_test(test_aliases.cpp test_aliases-cpp17 c++17)
@@ -104,7 +123,9 @@ if(MAGIC_ENUM_OPT_ENABLE_NONASCII)
   make_test(test_nonascii.cpp test_nonascii-cpp17 c++17)
 endif()
 
-if(HAS_CPP20_FLAG)
+endif()
+
+if(HAS_CPP20_FLAG AND (NOT MAGIC_ENUM_USE_MODULES OR (CMAKE_CXX_STANDARD EQUAL 20)))
   make_test(test.cpp test-cpp20 c++20)
   make_test(test_flags.cpp test_flags-cpp20 c++20)
   make_test(test_aliases.cpp test_aliases-cpp20 c++20)
@@ -115,7 +136,7 @@ if(HAS_CPP20_FLAG)
   endif()
 endif()
 
-if(HAS_CPP23_FLAG)
+if(HAS_CPP23_FLAG AND (NOT MAGIC_ENUM_USE_MODULES OR (CMAKE_CXX_STANDARD EQUAL 23)))
   make_test(test.cpp test-cpp23 c++23)
   make_test(test_flags.cpp test_flags-cpp23 c++23)
   make_test(test_aliases.cpp test_aliases-cpp23 c++23)

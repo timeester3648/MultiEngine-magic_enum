@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -26,6 +26,7 @@
 #  pragma warning(disable : 4244) // warning C4244: 'argument': conversion from 'const T' to 'unsigned int', possible loss of data.
 #endif
 
+#include <cstdint>
 #include <iostream>
 
 #include <magic_enum/magic_enum_containers.hpp>
@@ -43,14 +44,32 @@ int main() {
   color_bitset.set(Color::BLUE);
 
   std::cout << std::boolalpha;
-  std::cout << color_bitset.size() << std::endl; // 3 == magic_enum::enum_count<Color>()
-  std::cout << color_bitset.all() << std::endl; // false
-  std::cout << color_bitset.any() << std::endl; // true
-  std::cout << color_bitset.none() << std::endl; // false
-  std::cout << color_bitset.count() << std::endl; // 2
-  std::cout << color_bitset.test(Color::RED) << std::endl; // false
-  std::cout << color_bitset.test(Color::GREEN) << std::endl; // true
-  std::cout << color_bitset.test(Color::BLUE) << std::endl; // true
+  std::cout << color_bitset.size() << std::endl;
+  std::cout << color_bitset.all() << std::endl;
+  std::cout << color_bitset.any() << std::endl;
+  std::cout << color_bitset.none() << std::endl;
+  std::cout << color_bitset.count() << std::endl;
+  std::cout << color_bitset.test(Color::RED) << std::endl;
+  std::cout << color_bitset.test(Color::GREEN) << std::endl;
+  std::cout << color_bitset.test(Color::BLUE) << std::endl;
+  std::cout << (color_bitset.find(Color::RED) != color_bitset.end()) << std::endl;
+  std::cout << (color_bitset.find(Color::GREEN) != color_bitset.end()) << std::endl;
+  std::cout << (color_bitset.find(Color::BLUE) != color_bitset.end()) << std::endl;
+  for (Color color : color_bitset) { std::cout << magic_enum::enum_name(color) << " "; }
+  std::cout << std::endl;
+
+  constexpr std::uint8_t incoming = 0b00000011;
+  auto from_byte = magic_enum::containers::bitset<Color> {magic_enum::containers::raw_access, incoming};
+  std::cout << from_byte << std::endl;
+  std::cout << from_byte.test(Color::RED) << std::endl;
+  std::cout << from_byte.test(Color::GREEN) << std::endl;
+  std::cout << from_byte.test(Color::BLUE) << std::endl;
+
+  from_byte.set(Color::BLUE);
+  const auto raw_value = from_byte.to_ulong(magic_enum::containers::raw_access);
+  std::cout << raw_value << std::endl;
+  std::cout << static_cast<unsigned>(static_cast<std::uint8_t>(raw_value)) << std::endl;
+  std::cout << std::endl;
 
   return 0;
 }

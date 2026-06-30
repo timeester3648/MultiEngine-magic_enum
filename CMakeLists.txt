@@ -1,8 +1,18 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.14...4.20)
+
+if(MAGIC_ENUM_USE_MODULES AND CMAKE_VERSION VERSION_LESS "3.28")
+  message(FATAL_ERROR "MAGIC_ENUM_USE_MODULES requires CMake >= 3.28")
+endif()
+
+if(MAGIC_ENUM_USE_MODULES)
+  if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 20)
+  endif()
+endif()
 
 project(
   magic_enum
-  VERSION "0.9.7"
+  VERSION "0.9.8"
   HOMEPAGE_URL "https://github.com/Neargye/magic_enum"
   DESCRIPTION
     "A library that provides static reflection for enums, work with any enum type without any macro or boilerplate code."
@@ -35,19 +45,66 @@ a local magic_enum via pkgconfig" NO
 )
 
 if(${MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION} OR ${MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG})
+  enable_testing()
   add_subdirectory(test)
   return()
 endif()
 
 set(INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/include/magic_enum")
+set(MODULE "${CMAKE_CURRENT_SOURCE_DIR}/module")
 set(EXPORT_NAMESPACE "${PROJECT_NAME}::")
 
-add_library(${PROJECT_NAME} INTERFACE)
-add_library(${EXPORT_NAMESPACE}${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+function(magic_enum_make_library name)
+
+if(MAGIC_ENUM_USE_MODULES)
+  add_library(${name})
+  target_sources(${name}
+    PUBLIC
+      FILE_SET CXX_MODULES
+      BASE_DIRS "${MODULE}"
+      FILES "${MODULE}/magic_enum.cppm"
+    PUBLIC
+      FILE_SET HEADERS
+      BASE_DIRS "${INCLUDES}"
+      FILES
+        "${INCLUDES}/magic_enum.hpp"
+        "${INCLUDES}/magic_enum_all.hpp"
+        "${INCLUDES}/magic_enum_containers.hpp"
+        "${INCLUDES}/magic_enum_flags.hpp"
+        "${INCLUDES}/magic_enum_format.hpp"
+        "${INCLUDES}/magic_enum_fuse.hpp"
+        "${INCLUDES}/magic_enum_iostream.hpp"
+        "${INCLUDES}/magic_enum_switch.hpp"
+        "${INCLUDES}/magic_enum_utility.hpp"
+  )
+  target_compile_features(${name} PUBLIC cxx_std_20)
+  target_compile_definitions(${name}
+    PRIVATE ${ARGN}
+  )
+  set_target_properties(${name} PROPERTIES CXX_EXTENSIONS OFF)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30" AND
+     CMAKE_CXX_STANDARD IN_LIST CMAKE_CXX_COMPILER_IMPORT_STD AND
+     CMAKE_CXX_MODULE_STD)
+    message("${name}: using import std")
+    target_compile_features(${name} PRIVATE cxx_std_23)
+    target_compile_definitions(${name} PRIVATE MAGIC_ENUM_USE_STD_MODULE)
+  endif()
+
+  set(_scope PUBLIC)
+else()
+  add_library(${name} INTERFACE)
+  set(_scope INTERFACE)
+endif()
+
+add_library(${EXPORT_NAMESPACE}${name} ALIAS ${name})
 target_include_directories(
-  ${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  ${name} ${_scope} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+endfunction()
+
+magic_enum_make_library(${PROJECT_NAME})
 
 if(MAGIC_ENUM_OPT_BUILD_EXAMPLES)
   add_subdirectory(example)
@@ -64,15 +121,15 @@ if(MAGIC_ENUM_OPT_INSTALL)
   include(CPackComponent)
   include(CMakePackageConfigHelpers)
 
+  if(NOT MAGIC_ENUM_USE_MODULES)
+
   install(
     TARGETS "${PROJECT_NAME}"
     EXPORT ${PROJECT_NAME}
     INCLUDES
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    # COMPONENT "${SDK_COMPONENT_NAME}" # component is not allowed for
-    # includes!
-    # Headers are installed separately! Includes only marks the headers for
-    # export
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    # COMPONENT "${SDK_COMPONENT_NAME}" # component is not allowed for includes!
+    # Headers are installed separately! Includes only marks the headers for export
   )
 
   if(NOT DEFINED PROJECT_INCLUDE_HEADER_PATTERN)
@@ -85,6 +142,23 @@ if(MAGIC_ENUM_OPT_INSTALL)
     FILES_MATCHING
     PATTERN "${PROJECT_INCLUDE_HEADER_PATTERN}"
   )
+
+  else()
+
+  install(
+    TARGETS "${PROJECT_NAME}"
+    EXPORT ${PROJECT_NAME}
+    INCLUDES
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILE_SET HEADERS
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
+    FILE_SET CXX_MODULES
+      DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}"
+    CXX_MODULES_BMI
+      DESTINATION ""
+  )
+
+  endif()
 
   set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
   set(CPACK_PACKAGE_DESCRIPTION "${PROJECT_DESCRIPTION}")
